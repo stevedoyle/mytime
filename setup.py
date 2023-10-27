@@ -6,6 +6,7 @@ setup(
     install_requires=[
         'Click',
         'python-dateutil',
+        'tabulate',
     ],
     entry_points={
         'console_scripts': [
