@@ -8,16 +8,22 @@ for the collection of different categories of time information. This is useful
 because it allows the collection of time spent on individual projects and also
 the collection of time spent collaborating or doing deep work.
 
-Time entries are of the format: `Time.Category.Name: hours` where category is
-one of the following:
+Time entries are strings of the format: `Time.Category.Name: hours` where
+category is one of the following:
 
 - Proj: Project time.
 - Area: A more general category type. Useful for grouping projects into themes.
 - Focus: Collaboration or Deep Work time.
 - Prof: The [four types of professional time](https://www.sahilbloom.com/newsletter/the-4-types-of-professional-time?ref=mattrutherford.co.uk), Management, Creation, Consumption, Ideation.
 
+The time information is entered in hours with decimal fractions supported, e.g. `10.5`.
 
-`mytime` uses some conventions for the daily notes:
+The `Name` can be any string. It is sometimes useful to make this an extension
+of the hierarchical structure, e.g. "Collab.Meeting". It will be treated as a
+single string during processing.
+
+`mytime` uses some conventions for the daily notes files that contain the time
+tracking information:
 
 - Markdown file format, extension `.md`
 - Filename is the date of the daily note in the format: `YYYY-MM-DD.md`
