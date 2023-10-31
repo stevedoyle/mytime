@@ -82,8 +82,8 @@ def reportTimeSpent(path, category, begin, end, tsv=False):
         if total_hours:
             printTable(areas, tsv)
             print()
-            print(f'Total hours: {total_hours}')
-            print(f'Average hours/day: {total_hours/days}')
+            print(f'Total hours:       {total_hours : >6}')
+            print(f'Average hours/day: {total_hours/days : >6.1f}')
     except ValueError as err:
         print(f'Error parsing date: {err}')
         return
