@@ -74,11 +74,17 @@ def printTable(table, tsv):
 
 def reportTimeSpent(path, categories, begin, end, tsv=False):
     files = []
+
+    # Normalize category strings
+    categories = [cat.title() for cat in categories]
+    if 'All' in categories:
+        categories = ['Proj', 'Area', 'Focus', 'Prof']
+
     try:
         files = getFilesInRange(path, begin, end)
         td = gettimedata(files)
         for category in categories:
-            areas, total_hours = getSummary(td, category.title())
+            areas, total_hours = getSummary(td, category)
             days = getNumFiles(td)
             if total_hours:
                 printTable(areas, tsv)
@@ -158,7 +164,7 @@ def get_dates(start, end, thisweek, thismonth, thisyear,
 @click.option('--category', default=['Area'],
               multiple=True,
               help="Category of time entries to summarise",
-              type=click.Choice(['Area', 'Focus', 'Proj', 'Prof'],
+              type=click.Choice(['Area', 'Focus', 'Proj', 'Prof', 'All'],
                                 case_sensitive=False))
 @click.option('--tsv', default=False, is_flag=True,
               help='Format the output as tab separated values')
