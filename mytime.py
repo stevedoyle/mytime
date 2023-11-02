@@ -72,18 +72,20 @@ def printTable(table, tsv):
         floatfmt=('', '.1f', '.2f'),
         tablefmt=tblFmt))
 
-def reportTimeSpent(path, category, begin, end, tsv=False):
+def reportTimeSpent(path, categories, begin, end, tsv=False):
     files = []
     try:
         files = getFilesInRange(path, begin, end)
         td = gettimedata(files)
-        areas, total_hours = getSummary(td, category)
-        days = getNumFiles(td)
-        if total_hours:
-            printTable(areas, tsv)
-            print()
-            print(f'Total hours:       {total_hours : >6}')
-            print(f'Average hours/day: {total_hours/days : >6.1f}')
+        for category in categories:
+            areas, total_hours = getSummary(td, category.title())
+            days = getNumFiles(td)
+            if total_hours:
+                printTable(areas, tsv)
+                print()
+                print(f'Total hours:       {total_hours : >6}')
+                print(f'Average hours/day: {total_hours/days : >6.1f}')
+                print()
     except ValueError as err:
         print(f'Error parsing date: {err}')
         return
@@ -153,7 +155,8 @@ def get_dates(start, end, thisweek, thismonth, thisyear,
 @click.option('--path', default='.',
               help='Path to the input files.',
               type=click.Path(exists=True, file_okay=False))
-@click.option('--category', default='Area',
+@click.option('--category', default=['Area'],
+              multiple=True,
               help="Category of time entries to summarise",
               type=click.Choice(['Area', 'Focus', 'Proj', 'Prof'],
                                 case_sensitive=False))
@@ -199,7 +202,7 @@ def mytime(log, path,
                            lastweek, lastmonth, lastyear)
     logging.info(f'{start} -> {end}')
 
-    reportTimeSpent(path, category.title(), start, end, tsv)
+    reportTimeSpent(path, category, start, end, tsv)
 
 
 ##########################################################################
