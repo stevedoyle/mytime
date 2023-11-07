@@ -28,6 +28,11 @@ tracking information:
 - Markdown file format, extension `.md`
 - Filename is the date of the daily note in the format: `YYYY-MM-DD.md`
 
+`mytime` provides several options for specifying a time period. Only the daily
+note files that lie within the specified time period will be included in the
+analysis. If no time period is specified, today's time tracking info will be
+analysed.
+
 ## Examples
 
 Time information format within the daily note files:

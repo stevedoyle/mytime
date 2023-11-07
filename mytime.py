@@ -156,11 +156,11 @@ def get_dates(start, end, thisweek, thismonth, thisyear,
 ##########################################################################
 
 @click.command()
-@click.version_option(version="0.4.0")
+@click.version_option(version="0.4.1")
 @click.option('--log', default='warning',
               help='Logging level (info, debug)')
 @click.option('--path', default='.',
-              help='Path to the input files.',
+              help='Path where the files containing the time tracking data is stored.',
               type=click.Path(exists=True, file_okay=False))
 @click.option('--category', default=['Area'],
               multiple=True,
@@ -194,7 +194,16 @@ def mytime(log, path,
            from_, to,
            thisweek, thismonth, thisyear,
            lastweek, lastmonth, lastyear):
-    """Summarize time tracking data."""
+    """Summarize time tracking data.
+
+    Multiple options are provided for specifying the time period. Only the time
+    tracking data within the specified time period will be analysed. If no time
+    period is specified, today's time tracking info will be analyzed.
+
+    Time tracking information is extracted from 'Daily Note' files which follow
+    the convention that there is a separate file for each day and the file name
+    follows the pattern: 'YYYY-MM-DD.md', e.g. 2023-10-31.md.
+    """
     # Logging setup
     numeric_level = getattr(logging, log.upper(), None)
     if not isinstance(numeric_level, int):
