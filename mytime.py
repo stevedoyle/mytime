@@ -90,6 +90,7 @@ def reportTimeSpent(path, categories, begin, end, tsv=False):
                 printTable(areas, tsv)
                 print()
                 print(f'Total hours:       {total_hours : >6}')
+                print(f'Total days:        {days : >6}')
                 print(f'Average hours/day: {total_hours/days : >6.1f}')
                 print()
     except ValueError as err:
@@ -155,7 +156,7 @@ def get_dates(start, end, thisweek, thismonth, thisyear,
 ##########################################################################
 
 @click.command()
-@click.version_option(version="0.3.0")
+@click.version_option(version="0.4.0")
 @click.option('--log', default='warning',
               help='Logging level (info, debug)')
 @click.option('--path', default='.',
