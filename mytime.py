@@ -164,7 +164,7 @@ def get_dates(start, end, thisweek, thismonth, thisyear,
 @click.option('--path', default='.',
               help='Path where the files containing the time tracking data is stored.',
               type=click.Path(exists=True, file_okay=False))
-@click.option('--category', default=['Area'],
+@click.option('--category', default=['All'],
               multiple=True,
               help="Category of time entries to summarise",
               type=click.Choice(['Area', 'Focus', 'Proj', 'Prof', 'All'],
