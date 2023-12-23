@@ -6,6 +6,13 @@ from mytime import *
 
 class TestMyTime(unittest.TestCase):
 
+    def test_get_dates_today(self):
+        start, end = get_dates_today()
+        expected_start = pendulum.today().to_date_string()
+        expected_end = pendulum.today().to_date_string()
+        self.assertEqual(start, expected_start, "Incorrect start date")
+        self.assertEqual(end, expected_end, "Incorrect end date")
+
     def test_get_dates_thisweek(self):
         start, end = get_dates_thisweek()
         expected_start = pendulum.today().start_of('week').to_date_string()
@@ -17,6 +24,13 @@ class TestMyTime(unittest.TestCase):
         start, end = get_dates_lastweek()
         expected_start = pendulum.today().subtract(weeks=1).start_of('week').to_date_string()
         expected_end = pendulum.today().subtract(weeks=1).end_of('week').to_date_string()
+        self.assertEqual(start, expected_start, "Incorrect start date")
+        self.assertEqual(end, expected_end, "Incorrect end date")
+
+    def test_get_dates_thisquarter(self):
+        start, end = get_dates_thisquarter()
+        expected_start = pendulum.today().first_of('quarter').to_date_string()
+        expected_end = pendulum.today().last_of('quarter').to_date_string()
         self.assertEqual(start, expected_start, "Incorrect start date")
         self.assertEqual(end, expected_end, "Incorrect end date")
 

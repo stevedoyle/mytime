@@ -100,6 +100,14 @@ def reportTimeSpent(path, categories, begin, end, tsv=False):
 
 ##########################################################################
 
+def get_dates_today():
+    today = pendulum.today().to_date_string()
+    return today, today
+
+def get_dates_yesterday():
+    yesterday = pendulum.yesterday().to_date_string()
+    return yesterday, yesterday
+
 def get_dates_thisweek():
     today = pendulum.today()
     start = today.start_of('week').to_date_string()
@@ -124,6 +132,18 @@ def get_dates_lastmonth():
     end = lastmonth.end_of('month').to_date_string()
     return start, end
 
+def get_dates_thisquarter():
+    today = pendulum.today()
+    start = today.first_of('quarter').to_date_string()
+    end = today.last_of('quarter').to_date_string()
+    return start, end
+
+def get_dates_lastquarter():
+    lastmonth = pendulum.today().subtract(months=3)
+    start = lastmonth.first_of('quarter').to_date_string()
+    end = lastmonth.last_of('quarter').to_date_string()
+    return start, end
+
 def get_dates_thisyear():
     today = pendulum.today()
     start = today.start_of('year').to_date_string()
@@ -136,20 +156,30 @@ def get_dates_lastyear():
     end = lastyear.end_of('year').to_date_string()
     return start, end
 
-def get_dates(start, end, thisweek, thismonth, thisyear,
-              lastweek, lastmonth, lastyear):
+def get_dates(start, end,
+              today, yesterday,
+              thisweek, thismonth, thisquarter, thisyear,
+              lastweek, lastmonth, lastquarter, lastyear):
     start = start.strftime("%Y-%m-%d")
     end = end.strftime("%Y-%m-%d")
-    if thisweek:
+    if today:
+        start, end = get_dates_today()
+    elif yesterday:
+        start, end = get_dates_yesterday()
+    elif thisweek:
         start, end = get_dates_thisweek()
     elif thismonth:
         start, end = get_dates_thismonth()
+    elif thisquarter:
+        start, end = get_dates_thisquarter()
     elif thisyear:
         start, end = get_dates_thisyear()
     elif lastweek:
         start, end = get_dates_lastweek()
     elif lastmonth:
         start, end = get_dates_lastmonth()
+    elif lastquarter:
+        start, end = get_dates_lastquarter()
     elif lastyear:
         start, end = get_dates_lastyear()
     return start, end
@@ -178,24 +208,33 @@ def get_dates(start, end, thisweek, thismonth, thisyear,
 @click.option('--to', default=pendulum.today(),
               help='End of time tracking period (default is today).',
               type=click.DateTime())
+@click.option('--today', default=False, is_flag=True,
+              help="Today's time summary. Overrides --from and --to values.")
+@click.option('--yesterday', default=False, is_flag=True,
+              help="Yesterday's time summary. Overrides --from and --to values.")
 @click.option('--thisweek', default=False, is_flag=True,
               help="This week's time summary. Overrides --from and --to values.")
 @click.option('--thismonth', default=False, is_flag=True,
               help="This month's time summary. Overrides --from and --to values.")
+@click.option('--thisquarter', default=False, is_flag=True,
+              help="This quarter's time summary. Overrides --from and --to values.")
 @click.option('--thisyear', default=False, is_flag=True,
               help="This year's time summary. Overrides --from and --to values.")
 @click.option('--lastweek', default=False, is_flag=True,
               help="Last week's time summary. Overrides --from and --to values.")
 @click.option('--lastmonth', default=False, is_flag=True,
               help="Last month's time summary. Overrides --from and --to values.")
+@click.option('--lastquarter', default=False, is_flag=True,
+              help="Last quarter's time summary. Overrides --from and --to values.")
 @click.option('--lastyear', default=False, is_flag=True,
               help="Last year's time summary. Overrides --from and --to values.")
 def mytime(log, path,
            category,
            tsv,
            from_, to,
-           thisweek, thismonth, thisyear,
-           lastweek, lastmonth, lastyear):
+           today, yesterday,
+           thisweek, thismonth, thisquarter, thisyear,
+           lastweek, lastmonth, lastquarter, lastyear):
     """Summarize time tracking data.
 
     Multiple options are provided for specifying the time period. Only the time
@@ -216,8 +255,9 @@ def mytime(log, path,
     pd.set_option('display.precision', 2)
 
     start, end = get_dates(from_, to,
-                           thisweek, thismonth, thisyear,
-                           lastweek, lastmonth, lastyear)
+                           today, yesterday,
+                           thisweek, thismonth, thisquarter, thisyear,
+                           lastweek, lastmonth, lastquarter, lastyear)
     logging.info(f'{start} -> {end}')
 
     reportTimeSpent(path, category, start, end, tsv)
