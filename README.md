@@ -88,33 +88,48 @@ Usage: mytime [OPTIONS]
 
   Summarize time tracking data.
 
+  Multiple options are provided for specifying the time period. Only the time
+  tracking data within the specified time period will be analysed. If no time
+  period is specified, today's time tracking info will be analyzed.
+
+  Time tracking information is extracted from 'Daily Note' files which follow
+  the convention that there is a separate file for each day and the file name
+  follows the pattern: 'YYYY-MM-DD.md', e.g. 2023-10-31.md.
+
 Options:
   --version                       Show the version and exit.
   --log TEXT                      Logging level (info, debug)
-  --path DIRECTORY                Path to the input files.
-  --category [Area|Focus|Proj|Prof]
-                                  Category of time entries to
-                                  summarise
-  --tsv                           Format the output as tab separated
-                                  values
+  --path DIRECTORY                Path where the files containing the time
+                                  tracking data is stored.
+  --category [Area|Focus|Proj|Prof|All]
+                                  Category of time entries to summarise
+  --tsv                           Format the output as tab separated values
   --from [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%d %H:%M:%S]
-                                  Start of time tracking period
-                                  (default is today).
+                                  Start of time tracking period (default is
+                                  today).
   --to [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%d %H:%M:%S]
-                                  End of time tracking period (default
-                                  is today).
-  --thisweek                      This week's time summary. Overrides
+                                  End of time tracking period (default is
+                                  today).
+  --today                         Today's time summary. Overrides --from and
+                                  --to values.
+  --yesterday                     Yesterday's time summary. Overrides --from
+                                  and --to values.
+  --thisweek                      This week's time summary. Overrides --from
+                                  and --to values.
+  --thismonth                     This month's time summary. Overrides --from
+                                  and --to values.
+  --thisquarter                   This quarter's time summary. Overrides
                                   --from and --to values.
-  --thismonth                     This month's time summary. Overrides
+  --thisyear                      This year's time summary. Overrides --from
+                                  and --to values.
+  --lastweek                      Last week's time summary. Overrides --from
+                                  and --to values.
+  --lastmonth                     Last month's time summary. Overrides --from
+                                  and --to values.
+  --lastquarter                   Last quarter's time summary. Overrides
                                   --from and --to values.
-  --thisyear                      This year's time summary. Overrides
-                                  --from and --to values.
-  --lastweek                      Last week's time summary. Overrides
-                                  --from and --to values.
-  --lastmonth                     Last month's time summary. Overrides
-                                  --from and --to values.
-  --lastyear                      Last year's time summary. Overrides
-                                  --from and --to values.
+  --lastyear                      Last year's time summary. Overrides --from
+                                  and --to values.
   --help                          Show this message and exit.
-  ```
+```
 
