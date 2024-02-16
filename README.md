@@ -76,7 +76,7 @@ Output:
 Installation uses setuptools to install the utility from a cloned repo.
 
 ```bash
-git clone https://github.com/stevedoyle/slog.git
+git clone https://github.com/stevedoyle/mytime.git
 cd mytime
 pip install --editable .
 ```
