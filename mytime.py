@@ -39,10 +39,13 @@ def getFilesInRange(fpath, begin, end):
     with os.scandir(fpath) as it:
         for entry in it:
             if entry.name.endswith(".md") and entry.is_file():
-                filedate = dateutil.parser.parse(
-                    os.path.basename(entry).split('.')[0]).date()
-                if (begindate <= filedate) and (filedate <= enddate):
-                    files.append(entry.path)
+                try:
+                    filedate = dateutil.parser.parse(
+                        os.path.basename(entry).split('.')[0]).date()
+                    if (begindate <= filedate) and (filedate <= enddate):
+                        files.append(entry.path)
+                except dateutil.parser.ParserError:
+                    continue
     return files
 
 def gettimedata(files):
@@ -261,7 +264,6 @@ def mytime(log, path,
     logging.info(f'{start} -> {end}')
 
     reportTimeSpent(path, category, start, end, tsv)
-
 
 ##########################################################################
 
