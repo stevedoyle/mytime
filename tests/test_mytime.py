@@ -1,27 +1,27 @@
 import unittest
 from unittest.mock import patch, mock_open
-import numpy as np
-from pathlib import Path
-from mytime import *
+import mytime as mt
+import pandas as pd
+import pendulum
 
 
 class TestMyTime(unittest.TestCase):
     def test_get_dates_today(self):
-        start, end = get_dates_today()
+        start, end = mt.get_dates_today()
         expected_start = pendulum.today().to_date_string()
         expected_end = pendulum.today().to_date_string()
         self.assertEqual(start, expected_start, "Incorrect start date")
         self.assertEqual(end, expected_end, "Incorrect end date")
 
     def test_get_dates_thisweek(self):
-        start, end = get_dates_thisweek()
+        start, end = mt.get_dates_thisweek()
         expected_start = pendulum.today().start_of("week").to_date_string()
         expected_end = pendulum.today().end_of("week").to_date_string()
         self.assertEqual(start, expected_start, "Incorrect start date")
         self.assertEqual(end, expected_end, "Incorrect end date")
 
     def test_get_dates_lastweek(self):
-        start, end = get_dates_lastweek()
+        start, end = mt.get_dates_lastweek()
         expected_start = (
             pendulum.today().subtract(weeks=1).start_of("week").to_date_string()
         )
@@ -32,7 +32,7 @@ class TestMyTime(unittest.TestCase):
         self.assertEqual(end, expected_end, "Incorrect end date")
 
     def test_get_dates_thisquarter(self):
-        start, end = get_dates_thisquarter()
+        start, end = mt.get_dates_thisquarter()
         expected_start = pendulum.today().first_of("quarter").to_date_string()
         expected_end = pendulum.today().last_of("quarter").to_date_string()
         self.assertEqual(start, expected_start, "Incorrect start date")
@@ -46,7 +46,7 @@ class TestMyTime(unittest.TestCase):
             Time.Area.Collab: 0.5
             Time.Area.Collab.Meeting: 3
         """
-        parsed = extractTimeData(time_str)
+        parsed = mt.extractTimeData(time_str)
         self.assertIn(["Area", "Managing", 4.5], parsed)
         self.assertIn(["Area", "Sample", 2.5], parsed)
         self.assertIn(["Area", "Test", 1], parsed)
@@ -54,14 +54,14 @@ class TestMyTime(unittest.TestCase):
         self.assertIn(["Area", "Collab.Meeting", 3], parsed)
 
     def test_area_parsing_failure(self):
-        self.assertEqual(extractTimeData(""), [])
-        self.assertEqual(extractTimeData("Time.Area.Managing: "), [])
+        self.assertEqual(mt.extractTimeData(""), [])
+        self.assertEqual(mt.extractTimeData("Time.Area.Managing: "), [])
 
         time_str = r"""
             Time.Area.Managing: 4.5
             Tim.Area.Sample: 2.5
         """
-        self.assertEqual(extractTimeData(time_str), [["Area", "Managing", 4.5]])
+        self.assertEqual(mt.extractTimeData(time_str), [["Area", "Managing", 4.5]])
 
     def test_timedata_parsing(self):
         time_str = r"""
@@ -71,7 +71,7 @@ class TestMyTime(unittest.TestCase):
             Time.Area.Collab: 0.5
             Time.Area.Collab.Meeting: 3
         """
-        parsed = extractTimeData(time_str)
+        parsed = mt.extractTimeData(time_str)
         self.assertIn(["Overhead", "Managing", 4.5], parsed)
         self.assertIn(["Proj", "Sample", 2.5], parsed)
         self.assertIn(["Proj", "Test", 1], parsed)
@@ -86,7 +86,7 @@ class TestMyTime(unittest.TestCase):
             Time.Area.Collab: 0.5
             Time.Area.Collab.Meeting: 3
         """
-        parsed = extractTimeData(time_str, prefix="Prefix")
+        parsed = mt.extractTimeData(time_str, prefix="Prefix")
         self.assertIn(["Prefix", "Overhead", "Managing", 4.5], parsed)
         self.assertIn(["Prefix", "Proj", "Sample", 2.5], parsed)
         self.assertIn(["Prefix", "Proj", "Test", 1], parsed)
@@ -108,7 +108,7 @@ class TestMyTime(unittest.TestCase):
             columns=["Name", "Hours", "%"],
         )
         expected_total = 8.0
-        areas, total = getSummary(input, "Area")
+        areas, total = mt.getSummary(input, "Area")
         self.assertEqual(areas.values.tolist(), expected.values.tolist())
         self.assertEqual(total, expected_total)
 
@@ -127,7 +127,7 @@ class TestMyTime(unittest.TestCase):
 
         with patch("builtins.open", new=mock_open(read_data=mock_content)) as mock_file:
             fname = "./2023-10-16.md"
-            td = gettimedata([fname])
+            td = mt.gettimedata([fname])
             mock_file.assert_called_with("./2023-10-16.md", encoding="UTF-8")
             self.assertEqual(len(td), 4)
             self.assertEqual(td.values.tolist(), expected)
@@ -162,7 +162,7 @@ class TestMyTime(unittest.TestCase):
             mock_open(read_data=mock_f2).return_value,
         )
         mo.side_effect = handlers
-        td = gettimedata([f1name, f2name])
+        td = mt.gettimedata([f1name, f2name])
         self.assertEqual(len(td), 8)
         self.assertEqual(td.values.tolist(), expected)
 

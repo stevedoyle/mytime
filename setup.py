@@ -9,6 +9,8 @@ setup(
         "Click",
         "python-dateutil",
         "tabulate",
+        "pandas",
+        "pendulum",
     ],
     entry_points={
         "console_scripts": [
