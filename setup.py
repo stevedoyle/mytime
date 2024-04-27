@@ -1,17 +1,18 @@
 from setuptools import setup
 from version import __version__
+
 setup(
-    name='mytime',
+    name="mytime",
     version=__version__,
-    py_modules=['mytime'],
+    py_modules=["mytime"],
     install_requires=[
-        'Click',
-        'python-dateutil',
-        'tabulate',
+        "Click",
+        "python-dateutil",
+        "tabulate",
     ],
     entry_points={
-        'console_scripts': [
-            'mytime = mytime:mytime',
+        "console_scripts": [
+            "mytime = mytime:mytime",
         ],
-    }
+    },
 )
