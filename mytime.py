@@ -61,14 +61,14 @@ def gettimedata(files):
             td = extractTimeData(f.read(), prefix=name)
             if len(td) > 0:
                 timedata.extend(td)
-    df = pd.DataFrame(timedata, columns=["File", "Category", "Name", "Hours"]).astype(
+    df = pd.DataFrame(timedata, columns=["Date", "Category", "Name", "Hours"]).astype(
         {"Hours": "float"}
     )
     return df
 
 
-def getNumFiles(df):
-    return df["File"].nunique()
+def getNumDays(df):
+    return df["Date"].nunique()
 
 
 def printTable(table, tsv):
@@ -97,7 +97,7 @@ def reportTimeSpent(path, categories, begin, end, tsv=False):
         td = gettimedata(files)
         for category in categories:
             areas, total_hours = getSummary(td, category)
-            days = getNumFiles(td)
+            days = getNumDays(td)
             if total_hours:
                 printTable(areas, tsv)
                 print()
