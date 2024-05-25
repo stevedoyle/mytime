@@ -16,7 +16,7 @@ def extractTimeData(contents, prefix=""):
 
     pattern = r"Time\.(\w+)\.(.+):\s*(\d+\.?\d?)"
     mobj = re.findall(pattern, contents)
-    for (category, name, hours) in mobj:
+    for category, name, hours in mobj:
         if prefix:
             td.append([prefix, category, name, float(hours)])
         else:
@@ -103,9 +103,9 @@ def reportTimeSpent(path, categories, begin, end, tsv=False):
             if total_hours:
                 printTable(areas, tsv)
                 print()
-                print(f"Total hours:       {total_hours : >6}")
-                print(f"Total days:        {days : >6}")
-                print(f"Average hours/day: {total_hours/days : >6.1f}")
+                print(f"Total hours:       {total_hours: >6}")
+                print(f"Total days:        {days: >6}")
+                print(f"Average hours/day: {total_hours/days: >6.1f}")
                 print()
     except ValueError as err:
         print(f"Error parsing date: {err}")
