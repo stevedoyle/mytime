@@ -103,6 +103,8 @@ Options:
                                   tracking data is stored.
   --category [Area|Focus|Proj|Prof|All]
                                   Category of time entries to summarise
+  --csv                           Format the output as comma separated values
+                                  with one row per time entry
   --tsv                           Format the output as tab separated values
   --from [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%d %H:%M:%S]
                                   Start of time tracking period (default is
