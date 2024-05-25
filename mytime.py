@@ -8,6 +8,7 @@ import logging
 import pandas as pd
 import pendulum
 import re
+import sys
 from tabulate import tabulate
 
 
@@ -89,10 +90,7 @@ def printTable(table, tsv):
 def reportTimeSpent(path, categories, begin, end, tsv=False):
     files = []
 
-    # Normalize category strings
-    categories = [cat.title() for cat in categories]
-    if "All" in categories:
-        categories = ["Proj", "Area", "Focus", "Prof"]
+    categories = normalizeCategories(categories)
 
     try:
         files = getFilesInRange(path, begin, end)
@@ -110,6 +108,26 @@ def reportTimeSpent(path, categories, begin, end, tsv=False):
     except ValueError as err:
         print(f"Error parsing date: {err}")
         return
+
+
+def dumpTimeEntries(path, categories, begin, end):
+    categories = normalizeCategories(categories)
+
+    try:
+        files = getFilesInRange(path, begin, end)
+        td = gettimedata(files)
+        td.to_csv(sys.stdout, index=False)
+    except ValueError as err:
+        print(f"Error parsing date: {err}")
+        return
+
+
+def normalizeCategories(categories):
+    # Normalize category strings
+    categories = [cat.title() for cat in categories]
+    if "All" in categories:
+        categories = ["Proj", "Area", "Focus", "Prof"]
+    return categories
 
 
 ##########################################################################
@@ -240,6 +258,12 @@ def get_dates(
     type=click.Choice(["Area", "Focus", "Proj", "Prof", "All"], case_sensitive=False),
 )
 @click.option(
+    "--csv",
+    default=False,
+    is_flag=True,
+    help="Format the output as comma separated values with one row per time entry",
+)
+@click.option(
     "--tsv",
     default=False,
     is_flag=True,
@@ -322,6 +346,7 @@ def mytime(
     log,
     path,
     category,
+    csv,
     tsv,
     from_,
     to,
@@ -371,7 +396,10 @@ def mytime(
     )
     logging.info(f"{start} -> {end}")
 
-    reportTimeSpent(path, category, start, end, tsv)
+    if csv:
+        dumpTimeEntries(path, category, start, end)
+    else:
+        reportTimeSpent(path, category, start, end, tsv)
 
 
 ##########################################################################
