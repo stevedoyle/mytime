@@ -32,9 +32,31 @@ dev-dependencies = [
     "pytest>=8.1.2",
 ]
 
+[tool.ruff]
+# Exclude a variety of commonly ignored directories
+exclude = [
+    ".git",
+]
+
+# Same as black
+line-length = 88
+indent-width = 4
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings
+quote-style = "double"
+
+# Like Bladk, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Auto detect the appropriate line ending.
+line-ending = "auto"
+
 [tool.hatch.version]
 path = "version.py"
 
 [tool.hatch.metadata]
 allow-direct-references = true
-
