@@ -116,10 +116,15 @@ def dumpTimeEntries(path, categories, begin, end):
     try:
         files = getFilesInRange(path, begin, end)
         td = gettimedata(files)
+        td = filterTimeData(td, categories)
         td.to_csv(sys.stdout, index=False)
     except ValueError as err:
         print(f"Error parsing date: {err}")
         return
+
+
+def filterTimeData(df, categories):
+    return df[df["Category"].isin(categories)]
 
 
 def normalizeCategories(categories):
