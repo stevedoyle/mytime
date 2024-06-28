@@ -15,13 +15,18 @@ from tabulate import tabulate
 def extractTimeData(contents, prefix=""):
     td = []
 
+    onsite = False
+    onsite_pattern = r"onsite:\s*true"
+    if re.search(onsite_pattern, contents):
+        onsite = True
+
     pattern = r"Time\.(\w+)\.(.+):\s*(\d+\.?\d?)"
     mobj = re.findall(pattern, contents)
     for category, name, hours in mobj:
         if prefix:
-            td.append([prefix, category, name, float(hours)])
+            td.append([prefix, category, name, float(hours), onsite])
         else:
-            td.append([category, name, float(hours)])
+            td.append([category, name, float(hours), onsite])
     return td
 
 
@@ -61,9 +66,9 @@ def gettimedata(files):
             td = extractTimeData(f.read(), prefix=name)
             if len(td) > 0:
                 timedata.extend(td)
-    df = pd.DataFrame(timedata, columns=["Date", "Category", "Name", "Hours"]).astype(
-        {"Hours": "float"}
-    )
+    df = pd.DataFrame(
+        timedata, columns=["Date", "Category", "Name", "Hours", "Onsite"]
+    ).astype({"Hours": "float"})
     return df
 
 
@@ -87,7 +92,7 @@ def printTable(table, tsv):
     )
 
 
-def reportTimeSpent(path, categories, begin, end, tsv=False):
+def reportTimeSpent(path, categories, begin, end, tsv=False, onsite=False):
     files = []
 
     categories = normalizeCategories(categories)
@@ -105,9 +110,20 @@ def reportTimeSpent(path, categories, begin, end, tsv=False):
                 print(f"Total days:        {days: >6}")
                 print(f"Average hours/day: {total_hours/days: >6.1f}")
                 print()
+
+        if onsite:
+            onsite_days = getOnsiteDays(td)
+            print(
+                f"Total onsite days: {onsite_days: >6} ({(onsite_days/days*100):.0f}%)"
+            )
     except ValueError as err:
         print(f"Error parsing date: {err}")
         return
+
+
+def getOnsiteDays(df):
+    onsite = df.loc[df["Onsite"]]
+    return onsite["Date"].nunique()
 
 
 def dumpTimeEntries(path, categories, begin, end):
@@ -347,6 +363,12 @@ def get_dates(
     is_flag=True,
     help="Last year's time summary. Overrides --from and --to values.",
 )
+@click.option(
+    "--onsite",
+    default=True,
+    is_flag=True,
+    help="Include onsite information in the summary.",
+)
 def mytime(
     log,
     path,
@@ -365,6 +387,7 @@ def mytime(
     lastmonth,
     lastquarter,
     lastyear,
+    onsite,
 ):
     """Summarize time tracking data.
 
@@ -404,7 +427,7 @@ def mytime(
     if csv:
         dumpTimeEntries(path, category, start, end)
     else:
-        reportTimeSpent(path, category, start, end, tsv)
+        reportTimeSpent(path, category, start, end, tsv, onsite)
 
 
 ##########################################################################
