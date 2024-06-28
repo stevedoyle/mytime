@@ -47,11 +47,11 @@ class TestMyTime(unittest.TestCase):
             Time.Area.Collab.Meeting: 3
         """
         parsed = mt.extractTimeData(time_str)
-        self.assertIn(["Area", "Managing", 4.5], parsed)
-        self.assertIn(["Area", "Sample", 2.5], parsed)
-        self.assertIn(["Area", "Test", 1], parsed)
-        self.assertIn(["Area", "Collab", 0.5], parsed)
-        self.assertIn(["Area", "Collab.Meeting", 3], parsed)
+        self.assertIn(["Area", "Managing", 4.5, False], parsed)
+        self.assertIn(["Area", "Sample", 2.5, False], parsed)
+        self.assertIn(["Area", "Test", 1, False], parsed)
+        self.assertIn(["Area", "Collab", 0.5, False], parsed)
+        self.assertIn(["Area", "Collab.Meeting", 3, False], parsed)
 
     def test_area_parsing_failure(self):
         self.assertEqual(mt.extractTimeData(""), [])
@@ -61,7 +61,9 @@ class TestMyTime(unittest.TestCase):
             Time.Area.Managing: 4.5
             Tim.Area.Sample: 2.5
         """
-        self.assertEqual(mt.extractTimeData(time_str), [["Area", "Managing", 4.5]])
+        self.assertEqual(
+            mt.extractTimeData(time_str), [["Area", "Managing", 4.5, False]]
+        )
 
     def test_timedata_parsing(self):
         time_str = r"""
@@ -72,11 +74,11 @@ class TestMyTime(unittest.TestCase):
             Time.Area.Collab.Meeting: 3
         """
         parsed = mt.extractTimeData(time_str)
-        self.assertIn(["Overhead", "Managing", 4.5], parsed)
-        self.assertIn(["Proj", "Sample", 2.5], parsed)
-        self.assertIn(["Proj", "Test", 1], parsed)
-        self.assertIn(["Area", "Collab", 0.5], parsed)
-        self.assertIn(["Area", "Collab.Meeting", 3], parsed)
+        self.assertIn(["Overhead", "Managing", 4.5, False], parsed)
+        self.assertIn(["Proj", "Sample", 2.5, False], parsed)
+        self.assertIn(["Proj", "Test", 1, False], parsed)
+        self.assertIn(["Area", "Collab", 0.5, False], parsed)
+        self.assertIn(["Area", "Collab.Meeting", 3, False], parsed)
 
     def test_timedata_parsing_with_prefix(self):
         time_str = r"""
@@ -87,11 +89,11 @@ class TestMyTime(unittest.TestCase):
             Time.Area.Collab.Meeting: 3
         """
         parsed = mt.extractTimeData(time_str, prefix="Prefix")
-        self.assertIn(["Prefix", "Overhead", "Managing", 4.5], parsed)
-        self.assertIn(["Prefix", "Proj", "Sample", 2.5], parsed)
-        self.assertIn(["Prefix", "Proj", "Test", 1], parsed)
-        self.assertIn(["Prefix", "Area", "Collab", 0.5], parsed)
-        self.assertIn(["Prefix", "Area", "Collab.Meeting", 3], parsed)
+        self.assertIn(["Prefix", "Overhead", "Managing", 4.5, False], parsed)
+        self.assertIn(["Prefix", "Proj", "Sample", 2.5, False], parsed)
+        self.assertIn(["Prefix", "Proj", "Test", 1, False], parsed)
+        self.assertIn(["Prefix", "Area", "Collab", 0.5, False], parsed)
+        self.assertIn(["Prefix", "Area", "Collab.Meeting", 3, False], parsed)
 
     def test_getAreaSummary(self):
         input = pd.DataFrame(
@@ -119,10 +121,10 @@ class TestMyTime(unittest.TestCase):
             Time.Area.Collab.Email: 2
             Time.Area.DeepWork: 4"""
         expected = [
-            ["2023-10-16", "Area", "Managing", 1.0],
-            ["2023-10-16", "Area", "Collab.Meetings", 3.0],
-            ["2023-10-16", "Area", "Collab.Email", 2.0],
-            ["2023-10-16", "Area", "DeepWork", 4.0],
+            ["2023-10-16", "Area", "Managing", 1.0, False],
+            ["2023-10-16", "Area", "Collab.Meetings", 3.0, False],
+            ["2023-10-16", "Area", "Collab.Email", 2.0, False],
+            ["2023-10-16", "Area", "DeepWork", 4.0, False],
         ]
 
         with patch("builtins.open", new=mock_open(read_data=mock_content)) as mock_file:
@@ -145,14 +147,14 @@ class TestMyTime(unittest.TestCase):
             Time.Area.Collab.Email: 1.5
             Time.Area.DeepWork: 3"""
         expected = [
-            ["2023-10-16", "Area", "Managing", 1.0],
-            ["2023-10-16", "Area", "Collab.Meetings", 3.0],
-            ["2023-10-16", "Area", "Collab.Email", 2.0],
-            ["2023-10-16", "Area", "DeepWork", 4.0],
-            ["2023-10-17", "Area", "Managing", 2.0],
-            ["2023-10-17", "Area", "Collab.Meetings", 2.5],
-            ["2023-10-17", "Area", "Collab.Email", 1.5],
-            ["2023-10-17", "Area", "DeepWork", 3],
+            ["2023-10-16", "Area", "Managing", 1.0, False],
+            ["2023-10-16", "Area", "Collab.Meetings", 3.0, False],
+            ["2023-10-16", "Area", "Collab.Email", 2.0, False],
+            ["2023-10-16", "Area", "DeepWork", 4.0, False],
+            ["2023-10-17", "Area", "Managing", 2.0, False],
+            ["2023-10-17", "Area", "Collab.Meetings", 2.5, False],
+            ["2023-10-17", "Area", "Collab.Email", 1.5, False],
+            ["2023-10-17", "Area", "DeepWork", 3, False],
         ]
 
         f1name = "2023-10-16.md"
@@ -165,6 +167,14 @@ class TestMyTime(unittest.TestCase):
         td = mt.gettimedata([f1name, f2name])
         self.assertEqual(len(td), 8)
         self.assertEqual(td.values.tolist(), expected)
+
+    def test_onsite(self):
+        mock_content = """
+            "onsite: true",
+            Time.Area.Managing: 1"""
+
+        parsed = mt.extractTimeData(mock_content)
+        self.assertIn(["Area", "Managing", 1, True], parsed)
 
 
 if __name__ == "__main__":
