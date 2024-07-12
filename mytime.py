@@ -92,10 +92,13 @@ def printTable(table, tsv):
     )
 
 
-def reportTimeSpent(path, categories, begin, end, tsv=False, onsite=False):
+def reportTimeSpent(path, categories, begin, end, tsv=False, onsite=False, brief=False):
     files = []
 
-    categories = normalizeCategories(categories)
+    if brief:
+        categories = ["Focus"]
+    else:
+        categories = normalizeCategories(categories)
 
     try:
         files = getFilesInRange(path, begin, end)
@@ -104,7 +107,8 @@ def reportTimeSpent(path, categories, begin, end, tsv=False, onsite=False):
             areas, total_hours = getSummary(td, category)
             days = getNumDays(td)
             if total_hours:
-                printTable(areas, tsv)
+                if not brief:
+                    printTable(areas, tsv)
                 print()
                 print(f"Total hours:       {total_hours: >6}")
                 print(f"Total days:        {days: >6}")
@@ -369,6 +373,9 @@ def get_dates(
     is_flag=True,
     help="Include onsite information in the summary.",
 )
+@click.option(
+    "--brief", default=False, is_flag=True, help="Brief summary of time entries."
+)
 def mytime(
     log,
     path,
@@ -388,6 +395,7 @@ def mytime(
     lastquarter,
     lastyear,
     onsite,
+    brief,
 ):
     """Summarize time tracking data.
 
@@ -427,7 +435,7 @@ def mytime(
     if csv:
         dumpTimeEntries(path, category, start, end)
     else:
-        reportTimeSpent(path, category, start, end, tsv, onsite)
+        reportTimeSpent(path, category, start, end, tsv, onsite, brief)
 
 
 ##########################################################################
