@@ -176,6 +176,12 @@ class TestMyTime(unittest.TestCase):
         parsed = mt.extractTimeData(mock_content)
         self.assertIn(["Area", "Managing", 1, True], parsed)
 
+        mock_content = """
+            Time.Area.Managing: 1"""
+
+        parsed = mt.extractTimeData(mock_content)
+        self.assertIn(["Area", "Managing", 1, False], parsed)
+
 
 if __name__ == "__main__":
     unittest.main()
