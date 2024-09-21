@@ -132,5 +132,7 @@ Options:
                                   --from and --to values.
   --lastyear                      Last year's time summary. Overrides --from
                                   and --to values.
+  --onsite                        Include onsite information in the summary.
+  --brief                         Brief summary of time entries.
   --help                          Show this message and exit.
 ```
