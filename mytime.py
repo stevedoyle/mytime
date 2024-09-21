@@ -369,7 +369,7 @@ def get_dates(
 )
 @click.option(
     "--onsite",
-    default=True,
+    default=False,
     is_flag=True,
     help="Include onsite information in the summary.",
 )
