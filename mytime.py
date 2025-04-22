@@ -115,7 +115,7 @@ def reportTimeSpent(path, categories, begin, end, tsv=False, onsite=False, brief
                 print(f"Average hours/day: {total_hours/days: >6.1f}")
                 print()
 
-        if onsite:
+        if days > 0 and onsite:
             onsite_days = getOnsiteDays(td)
             print(
                 f"Total onsite days: {onsite_days: >6} ({(onsite_days/days*100):.0f}%)"
