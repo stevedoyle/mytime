@@ -100,7 +100,7 @@ def main(filename, today, yesterday, filter_text):
                 total_minutes += h * 60 + m
         total_hours = total_minutes // 60
         total_rem_minutes = total_minutes % 60
-        print(f"\nTotal time (excluding Breaks): {total_hours}:{total_rem_minutes:02d}")
+        print(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
     else:
         print("No activities match the filter.")
 
