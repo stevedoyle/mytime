@@ -18,6 +18,7 @@ dynamic = ["version"]
 
 [project.scripts]
 "mytime" = "mytime:mytime"
+"myday" = "myday:main"
 
 [build-system]
 requires = ["hatchling"]
