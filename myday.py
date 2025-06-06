@@ -47,17 +47,8 @@ def parse_time_entries(time_lines):
             durations.append(str(duration)[:-3])  # Remove seconds
         else:
             durations.append('-')
-    total_minutes = 0
     for t, a, d in zip(times, activities, durations):
         entries.append([t, d, a])
-        # Only sum durations that are not '-' and activity does not start with 'Break'
-        if d != '-' and not a.strip().startswith('Break'):
-            h, m = map(int, d.split(':'))
-            total_minutes += h * 60 + m
-    total_hours = total_minutes // 60
-    total_rem_minutes = total_minutes % 60
-    print(tabulate(entries, headers=["Time", "Duration", "Activity"], tablefmt="github"))
-    print(f"\nTotal time (excluding Breaks): {total_hours}:{total_rem_minutes:02d}")
     return entries
 
 @click.command()
