@@ -4,7 +4,7 @@ from version import __version__
 setup(
     name="mytime",
     version=__version__,
-    py_modules=["mytime"],
+    py_modules=["mytime", "myday"],
     install_requires=[
         "Click",
         "python-dateutil",
@@ -15,6 +15,7 @@ setup(
     entry_points={
         "console_scripts": [
             "mytime = mytime:mytime",
+            "myday = myday:main",
         ],
     },
 )
