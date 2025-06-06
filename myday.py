@@ -82,7 +82,6 @@ def calculate_total_time(entries: List[List[str]]) -> tuple[int, int]:
     total_minutes = 0
     for _, duration, activity in entries:
         if duration != "-" and not activity.strip().startswith(BREAK_ACTIVITY_ID):
-            print(f"Processing duration: {duration} for activity: {activity}")
             h, m = map(int, duration.split(":"))
             total_minutes += h * 60 + m
     total_hours = total_minutes // 60
