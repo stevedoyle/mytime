@@ -37,7 +37,7 @@ def parse_time_entries(time_lines: List[str]) -> List[List[str]]:
     activities = []
     wikilink_pattern = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
     for line in time_lines:
-        match = re.match(r"^(\d{2}:\d{2})\s+(.*)", line)
+        match = re.match(r"^(\d{2}:\d{2})\s?(.*)", line)
         if match:
             times.append(match.group(1))
             # Remove markdown wikilinks from activity text

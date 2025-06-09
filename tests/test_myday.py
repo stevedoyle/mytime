@@ -61,13 +61,15 @@ Some notes here.
             "08:00 Breakfast",
             "09:00 Work",
             "12:00 Lunch",
+            "12:30",
             "13:00 End",
         ]
         result = parse_time_entries(time_lines)
         assert result == [
             ["08:00", "1:00", "Breakfast"],
             ["09:00", "3:00", "Work"],
-            ["12:00", "1:00", "Lunch"],
+            ["12:00", "0:30", "Lunch"],
+            ["12:30", "0:30", ""],
             ["13:00", "-", "End"],
         ]
 
