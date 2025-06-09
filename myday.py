@@ -77,6 +77,21 @@ def filter_entries(
     return entries
 
 
+def ignore_entries(
+    entries: List[List[str]], ignore_text: str, ignore_case: bool = False
+) -> List[List[str]]:
+    """Exclude entries based on a regular expression."""
+    if ignore_text:
+        try:
+            flags = re.IGNORECASE if ignore_case else 0
+            ignore_re = re.compile(ignore_text, flags)
+        except re.error as e:
+            click.echo(f"Error: Invalid regular expression for --ignore: {e}", err=True)
+            sys.exit(1)
+        return [row for row in entries if not ignore_re.search(row[2])]
+    return entries
+
+
 def calculate_total_time(entries: List[List[str]]) -> tuple[int, int]:
     """Calculate total time spent on activities, excluding breaks."""
     total_minutes = 0
@@ -106,13 +121,19 @@ def calculate_total_time(entries: List[List[str]]) -> tuple[int, int]:
     help="Make the filter regular expression case-insensitive",
 )
 @click.option(
+    "--ignore",
+    "ignore_text",
+    default=None,
+    help="Exclude activities matching this regular expression",
+)
+@click.option(
     "--path",
     "base_path",
     default=".",
     show_default=True,
     help="Base directory to search for files",
 )
-def main(filename, today, yesterday, filter_text, ignore_case, base_path):
+def main(filename, today, yesterday, filter_text, ignore_case, ignore_text, base_path):
     """Summarize time entries from a markdown file.
     If no filename is provided, defaults to today's file.
     If --today or --yesterday is specified, uses the respective file.
@@ -148,6 +169,7 @@ def main(filename, today, yesterday, filter_text, ignore_case, base_path):
     time_lines = extract_time_section(filename_to_use)
     entries = parse_time_entries(time_lines)
     entries = filter_entries(entries, filter_text, ignore_case)
+    entries = ignore_entries(entries, ignore_text, ignore_case)
 
     if entries:
         print(

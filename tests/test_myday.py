@@ -5,6 +5,7 @@ from myday import (
     parse_time_entries,
     calculate_total_time,
     filter_entries,
+    ignore_entries,
 )
 
 
@@ -128,3 +129,26 @@ Some notes here.
         filtered = filter_entries(entries, "work", ignore_case=True)
         # Should match "Work" because ignore_case=True
         assert filtered == [["09:00", "3:00", "Work"]]
+
+    def test_ignore_entries(self):
+        entries = [
+            ["08:00", "1:00", "Breakfast"],
+            ["09:00", "3:00", "Work"],
+            ["12:00", "1:00", "Lunch"],
+            ["13:00", "-", "End"],
+        ]
+        # Ignore activities containing "Work"
+        ignored = ignore_entries(entries, "Work", ignore_case=False)
+        assert ignored == [
+            ["08:00", "1:00", "Breakfast"],
+            ["12:00", "1:00", "Lunch"],
+            ["13:00", "-", "End"],
+        ]
+
+        # Ignore activities containing "lunch" (case-insensitive)
+        ignored = ignore_entries(entries, "lunch", ignore_case=True)
+        assert ignored == [
+            ["08:00", "1:00", "Breakfast"],
+            ["09:00", "3:00", "Work"],
+            ["13:00", "-", "End"],
+        ]
