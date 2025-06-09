@@ -92,11 +92,15 @@ def ignore_entries(
     return entries
 
 
-def calculate_total_time(entries: List[List[str]]) -> tuple[int, int]:
-    """Calculate total time spent on activities, excluding breaks."""
+def calculate_total_time(
+    entries: List[List[str]], include_breaks: bool = False
+) -> tuple[int, int]:
+    """Calculate total time spent on activities, optionally including breaks."""
     total_minutes = 0
     for _, duration, activity in entries:
-        if duration != "-" and not activity.strip().startswith(BREAK_ACTIVITY_ID):
+        if duration != "-" and (
+            include_breaks or not activity.strip().startswith(BREAK_ACTIVITY_ID)
+        ):
             h, m = map(int, duration.split(":"))
             total_minutes += h * 60 + m
     total_hours = total_minutes // 60
@@ -133,7 +137,22 @@ def calculate_total_time(entries: List[List[str]]) -> tuple[int, int]:
     show_default=True,
     help="Base directory to search for files",
 )
-def main(filename, today, yesterday, filter_text, ignore_case, ignore_text, base_path):
+@click.option(
+    "--include-breaks",
+    is_flag=True,
+    default=False,
+    help='Include activities containing "Break" in total time calculation',
+)
+def main(
+    filename,
+    today,
+    yesterday,
+    filter_text,
+    ignore_case,
+    ignore_text,
+    base_path,
+    include_breaks,
+):
     """Summarize time entries from a markdown file.
     If no filename is provided, defaults to today's file.
     If --today or --yesterday is specified, uses the respective file.
@@ -177,7 +196,7 @@ def main(filename, today, yesterday, filter_text, ignore_case, ignore_text, base
                 entries, headers=["Time", "Duration", "Activity"], tablefmt="github"
             )
         )
-        total_hours, total_rem_minutes = calculate_total_time(entries)
+        total_hours, total_rem_minutes = calculate_total_time(entries, include_breaks)
         print(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
     else:
         print("No activities match the filter.")

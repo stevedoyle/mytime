@@ -152,3 +152,17 @@ Some notes here.
             ["09:00", "3:00", "Work"],
             ["13:00", "-", "End"],
         ]
+
+    def test_calculate_total_time_include_breaks(self):
+        entries = [
+            ["08:00", "1:00", "Email"],
+            ["09:00", "0:30", "Break"],
+            ["09:30", "2:00", "Work"],
+            ["11:30", "-", "End"],
+        ]
+        # With include_breaks=True, "Break" entry should be included in total
+        total_hours, total_rem_minutes = calculate_total_time(
+            entries, include_breaks=True
+        )
+        assert total_hours == 3
+        assert total_rem_minutes == 30
