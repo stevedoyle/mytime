@@ -131,6 +131,12 @@ def calculate_total_time(
     help="Exclude activities matching this regular expression",
 )
 @click.option(
+    "--ignore-empty",
+    is_flag=True,
+    default=False,
+    help="Ignore activities with an empty name",
+)
+@click.option(
     "--path",
     "base_path",
     default=".",
@@ -150,6 +156,7 @@ def main(
     filter_text,
     ignore_case,
     ignore_text,
+    ignore_empty,
     base_path,
     include_breaks,
 ):
@@ -189,6 +196,8 @@ def main(
     entries = parse_time_entries(time_lines)
     entries = filter_entries(entries, filter_text, ignore_case)
     entries = ignore_entries(entries, ignore_text, ignore_case)
+    if ignore_empty:
+        entries = [row for row in entries if row[2].strip() != ""]
 
     if entries:
         print(
