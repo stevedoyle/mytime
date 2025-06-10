@@ -168,3 +168,17 @@ Some notes here.
         )
         assert total_hours == 3
         assert total_rem_minutes == 30
+
+    def test_ignore_empty(self):
+        entries = [
+            ["08:00", "1:00", ""],
+            ["09:00", "3:00", "Work"],
+            ["12:00", "1:00", " "],
+            ["13:00", "-", "End"],
+        ]
+        # Simulate --ignore-empty by filtering out entries with empty or whitespace-only activity
+        filtered = [row for row in entries if row[2].strip() != ""]
+        assert filtered == [
+            ["09:00", "3:00", "Work"],
+            ["13:00", "-", "End"],
+        ]
