@@ -96,7 +96,7 @@ class TestMyTime(unittest.TestCase):
         self.assertIn(["Prefix", "Area", "Collab.Meeting", 3, False], parsed)
 
     def test_getAreaSummary(self):
-        input = pd.DataFrame(
+        df_input = pd.DataFrame(
             [
                 ("Area", "Managing", 3.5),
                 ("Area", "Sample", 1),
@@ -110,7 +110,7 @@ class TestMyTime(unittest.TestCase):
             columns=["Name", "Hours", "%"],
         )
         expected_total = 8.0
-        areas, total = mt.getSummary(input, "Area")
+        areas, total = mt.getSummary(df_input, "Area")
         self.assertEqual(areas.values.tolist(), expected.values.tolist())
         self.assertEqual(total, expected_total)
 
