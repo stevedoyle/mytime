@@ -112,13 +112,13 @@ def reportTimeSpent(path, categories, begin, end, tsv=False, onsite=False, brief
                 print()
                 print(f"Total hours:       {total_hours: >6}")
                 print(f"Total days:        {days: >6}")
-                print(f"Average hours/day: {total_hours/days: >6.1f}")
+                print(f"Average hours/day: {total_hours / days: >6.1f}")
                 print()
 
         if days > 0 and onsite:
             onsite_days = getOnsiteDays(td)
             print(
-                f"Total onsite days: {onsite_days: >6} ({(onsite_days/days*100):.0f}%)"
+                f"Total onsite days: {onsite_days: >6} ({(onsite_days / days * 100):.0f}%)"
             )
     except ValueError as err:
         print(f"Error parsing date: {err}")
