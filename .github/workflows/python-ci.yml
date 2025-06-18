@@ -53,12 +53,6 @@ jobs:
         ruff check tests/
         ruff format . --check
 
-#    - name: Fixup timezone issue in ubuntu container that causes pendulum to fail
-#      run: |
-#        rm -f /etc/localtime
-#        ln -s /usr/share/zoneinfo/UTC /etc/localtime
-#        sed -i "s/\///g" /etc/timezone
-
     - name: Run Tests (Pytest)
       run: |
         pip install -e .
