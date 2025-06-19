@@ -1,4 +1,5 @@
 click==8.1.7
+google-genai==1.21.1
 numpy==1.26.2
 pandas==2.1.4
 pendulum==3.0.0

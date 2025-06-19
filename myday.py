@@ -3,6 +3,8 @@ import re
 import sys
 from datetime import date, datetime, timedelta
 from typing import List
+from google import genai
+
 
 import click
 from tabulate import tabulate
@@ -108,6 +110,31 @@ def calculate_total_time(
     return total_hours, total_rem_minutes
 
 
+def do_ai_analysis(entries: List[List[str]]) -> None:
+    """Placeholder for AI analysis method."""
+    # This function sends the time entries to an AI analysis method.
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+
+    if gemini_api_key is None:
+        raise ValueError("GEMINI_API_KEY environment variable is not set.")
+
+    client = genai.Client(api_key=gemini_api_key)
+
+    prompt = f"""Analyze this set of time blocks for how I spent my day.
+        Analyze the time blocks against Sahil Bloom's 4 types of professional
+        time. These types are: management, creation, consumption and ideation.
+        Summarize the time spent in each type.
+
+        Separately, categorize the time blocks into the following categories:
+        meeting, collab or deep-work.
+
+        {entries}
+    """
+
+    response = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
+    print(response.text)
+
+
 @click.command()
 @click.argument("filename", required=False)
 @click.option("--today", is_flag=True, help="Summarize today's file")
@@ -149,6 +176,12 @@ def calculate_total_time(
     default=False,
     help='Include activities containing "Break" in total time calculation',
 )
+@click.option(
+    "--ai",
+    is_flag=True,
+    default=False,
+    help="Send time information to an AI analysis method",
+)
 def main(
     filename,
     today,
@@ -159,6 +192,7 @@ def main(
     ignore_empty,
     base_path,
     include_breaks,
+    ai,
 ):
     """Summarize time entries from a markdown file.
     If no filename is provided, defaults to today's file.
@@ -198,6 +232,10 @@ def main(
     entries = ignore_entries(entries, ignore_text, ignore_case)
     if ignore_empty:
         entries = [row for row in entries if row[2].strip() != ""]
+
+    if ai:
+        do_ai_analysis(entries)
+        return
 
     if entries:
         print(
