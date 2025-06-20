@@ -2,8 +2,8 @@ import os
 import re
 import sys
 from datetime import date, datetime, timedelta
-from typing import List
-from google import genai
+from litellm import completion
+from typing import List, Dict
 
 
 import click
@@ -110,29 +110,57 @@ def calculate_total_time(
     return total_hours, total_rem_minutes
 
 
-def do_ai_analysis(entries: List[List[str]]) -> None:
-    """Placeholder for AI analysis method."""
-    # This function sends the time entries to an AI analysis method.
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
+def config_api_key():
+    api_key = os.getenv("GEMINI_API_KEY")
 
-    if gemini_api_key is None:
+    if api_key is None:
         raise ValueError("GEMINI_API_KEY environment variable is not set.")
 
-    client = genai.Client(api_key=gemini_api_key)
+    os.environ["GOOGLE_API_KEY"] = api_key
 
-    prompt = f"""Analyze this set of time blocks for how I spent my day.
-        Analyze the time blocks against Sahil Bloom's 4 types of professional
-        time. These types are: management, creation, consumption and ideation.
-        Summarize the time spent in each type.
 
-        Separately, categorize the time blocks into the following categories:
-        meeting, collab or deep-work.
+def generate_response(messages: List[Dict]) -> str:
+    response = completion(
+        model="gemini/gemini-1.5-flash",
+        messages=messages,
+        max_tokens=1024,
+        temperature=0.2,
+    )
+    if not response or not response.choices:  # type: ignore
+        raise ValueError("No response received from the model.")
 
-        {entries}
-    """
+    first_choice = response.choices[0]  # type: ignore
+    if not first_choice.message or not first_choice.message.content:  # type: ignore
+        raise ValueError("No message in the first choice of the response.")
 
-    response = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
-    print(response.text)
+    return first_choice.message.content.strip()  # type: ignore
+
+
+def do_ai_analysis(entries: List[List[str]]) -> None:
+    """AI analysis of Time Data."""
+    # This function sends the time entries to an AI LLM for analysis.
+
+    timedata = "\n".join(f"{row[0]}, {row[1]}, {row[2]}" for row in entries)
+    config_api_key()
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful assistant that analyzes time blocks for productivity."
+            "The format of each time entry is 'Start time, Duration, Description'"
+            "You will categorize each time block entry spent into four types: management, creation, consumption, and ideation."
+            "You will treat entry descriptions containing the word 'Break.' as a separate category."
+            "Ignore any entries with '-' as the duration."
+            "Treat entries with empty descriptions as if they were part of the previous entry."
+            "You will summarise the results in a table format with the following columns: "
+            "Type, Time Spent, and Description."
+            "You will also provide a total time spent at the end of the table.",
+        },
+        {"role": "user", "content": timedata},
+    ]
+
+    four_types_response = generate_response(messages)
+    print(four_types_response)
 
 
 @click.command()
