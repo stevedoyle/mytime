@@ -150,7 +150,7 @@ def do_ai_analysis(entries: List[List[str]]) -> None:
             "The format of each time entry is 'Start time, Duration, Description'"
             "You will categorize each time block entry spent into four types: management, creation, consumption, and ideation."
             "You will treat entry descriptions containing the word 'Break.' as a separate category."
-            "Ignore any entries with '-' as the duration."
+            "Ignore any entries with '-' or 'End' as the duration."
             "Treat entries with empty descriptions as if they were part of the previous entry."
             "You will summarise the results in a table format with the following columns: "
             "Type, Time Spent, and Description."
