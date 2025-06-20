@@ -152,6 +152,8 @@ def do_ai_analysis(entries: List[List[str]]) -> None:
             "You will treat entry descriptions containing the word 'Break.' as a separate category."
             "Ignore any entries with '-' or 'End' as the duration."
             "Treat entries with empty descriptions as if they were part of the previous entry."
+            "Format the categorization output as a table with the following columns: "
+            "Start time, Duration, Description, Type."
             "You will summarise the results in a table format with the following columns: "
             "Type, Time Spent, and Description."
             "You will also provide a total time spent at the end of the table.",
