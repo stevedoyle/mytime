@@ -121,7 +121,7 @@ def config_api_key():
 
 def generate_response(messages: List[Dict]) -> str:
     response = completion(
-        model="gemini/gemini-1.5-flash",
+        model="gemini/gemini-2.0-flash",
         messages=messages,
         max_tokens=1024,
         temperature=0.2,
