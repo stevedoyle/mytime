@@ -69,7 +69,7 @@ def parse_time_entries(time_lines: List[str]) -> List[List[str]]:
             duration_str = str(duration)[:-3]  # Remove seconds
 
             # Parse project code from description
-            project_match = re.search(r"#(\w+(?:-\w+)?)", description)
+            project_match = re.search(r"#(\w+(?:-\w+)*)", description)
 
             if project_match:
                 project_code = project_match.group(1)
@@ -84,7 +84,7 @@ def parse_time_entries(time_lines: List[str]) -> List[List[str]]:
                 project = "General"
 
             # Remove hashtags from description for display
-            clean_description = re.sub(r"#\w+(-\w+)?", "", description).strip()
+            clean_description = re.sub(r"#\w+(?:-\w+)*", "", description).strip()
 
             entries.append(
                 [

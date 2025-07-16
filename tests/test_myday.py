@@ -195,3 +195,30 @@ Some notes here.
             ["10:00", "1:00", "Task", "Team", "Team task"],
             ["11:00", "1:00", "Task", "MyProject", "Work on my project"],
         ]
+
+    def test_parse_multi_dash_project_codes(self):
+        time_lines = [
+            "08:00 - 09:00 T: #Project-ABC-XYZ Work on multi-dash project",
+            "09:00 - 10:00 T: #Project-DEF-GHI-JKL Work on another multi-dash project",
+            "10:00 - 11:00 T: #Managing-Sub-Task Management subtask with dashes",
+            "11:00 - 12:00 T: #Team-Alpha-Beta Team task with dashes",
+        ]
+        result = parse_time_entries(time_lines)
+        assert result == [
+            ["08:00", "1:00", "Task", "ABC-XYZ", "Work on multi-dash project"],
+            [
+                "09:00",
+                "1:00",
+                "Task",
+                "DEF-GHI-JKL",
+                "Work on another multi-dash project",
+            ],
+            [
+                "10:00",
+                "1:00",
+                "Task",
+                "Managing-Sub-Task",
+                "Management subtask with dashes",
+            ],
+            ["11:00", "1:00", "Task", "Team-Alpha-Beta", "Team task with dashes"],
+        ]
