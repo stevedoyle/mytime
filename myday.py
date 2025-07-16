@@ -131,6 +131,21 @@ def summarize_by_type(entries: List[List[str]]) -> Dict[str, int]:
     return dict(type_totals)
 
 
+def summarize_by_focus(type_totals: Dict[str, int]) -> Dict[str, int]:
+    """Summarize total time by productivity focus."""
+    focus_totals = defaultdict(int)
+
+    for type_name, minutes in type_totals.items():
+        if type_name in ["Task", "Learning"]:
+            focus_totals["Deep"] += minutes
+        elif type_name in ["Meeting"]:
+            focus_totals["Meeting"] += minutes
+        elif type_name in ["Comms", "Admin"]:
+            focus_totals["Shallow"] += minutes
+
+    return dict(focus_totals)
+
+
 def format_minutes_to_hours(minutes: int) -> str:
     """Convert minutes to HH:MM format."""
     hours = minutes // 60
@@ -302,7 +317,9 @@ def main(
         project_totals = summarize_by_project(entries)
         project_table = [
             [project, format_minutes_to_hours(minutes)]
-            for project, minutes in sorted(project_totals.items())
+            for project, minutes in sorted(
+                project_totals.items(), key=lambda x: x[1], reverse=True
+            )
         ]
         print(
             tabulate(
@@ -314,18 +331,46 @@ def main(
         type_totals = summarize_by_type(entries)
         type_table = [
             [type_name, format_minutes_to_hours(minutes)]
-            for type_name, minutes in sorted(type_totals.items())
+            for type_name, minutes in sorted(
+                type_totals.items(), key=lambda x: x[1], reverse=True
+            )
         ]
         print(tabulate(type_table, headers=["Type", "Total Time"], tablefmt="github"))
 
+        print("\n## Summary by Productivity Focus")
+        focus_totals = summarize_by_focus(type_totals)
+        focus_table = [
+            [focus, format_minutes_to_hours(minutes)]
+            for focus, minutes in sorted(
+                focus_totals.items(), key=lambda x: x[1], reverse=True
+            )
+        ]
+        print(
+            tabulate(
+                focus_table,
+                headers=["Productivity", "Total Time"],
+                tablefmt="github",
+            )
+        )
+
         # Print summaries with formatting
         print("\nProjects:")
-        for project, minutes in sorted(project_totals.items()):
+        for project, minutes in sorted(
+            project_totals.items(), key=lambda x: x[1], reverse=True
+        ):
             print(f"- Time.Proj.{project}: {format_minutes_to_hours(minutes)}")
 
         print("\nTypes:")
-        for type_name, minutes in sorted(type_totals.items()):
+        for type_name, minutes in sorted(
+            type_totals.items(), key=lambda x: x[1], reverse=True
+        ):
             print(f"- Time.Type.{type_name}: {format_minutes_to_hours(minutes)}")
+
+        print("\nProductivity:")
+        for focus, minutes in sorted(
+            focus_totals.items(), key=lambda x: x[1], reverse=True
+        ):
+            print(f"- Time.Focus.{focus}: {format_minutes_to_hours(minutes)}")
 
         # Print overall total
         total_hours, total_rem_minutes = calculate_total_time(entries, include_breaks)

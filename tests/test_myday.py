@@ -6,6 +6,7 @@ from myday import (
     calculate_total_time,
     filter_entries,
     ignore_entries,
+    summarize_by_focus,
 )
 
 
@@ -222,3 +223,86 @@ Some notes here.
             ],
             ["11:00", "1:00", "Task", "Team-Alpha-Beta", "Team task with dashes"],
         ]
+
+    def test_summarize_by_focus_basic(self):
+        """Test basic functionality of summarize_by_focus with all focus types."""
+        type_totals = {
+            "Task": 120,  # Deep focus
+            "Learning": 60,  # Deep focus
+            "Meeting": 90,  # Meeting focus
+            "Comms": 30,  # Shallow focus
+            "Admin": 45,  # Shallow focus
+        }
+
+        result = summarize_by_focus(type_totals)
+
+        expected = {
+            "Deep": 180,  # Task (120) + Learning (60)
+            "Meeting": 90,  # Meeting (90)
+            "Shallow": 75,  # Comms (30) + Admin (45)
+        }
+
+        assert result == expected
+
+    def test_summarize_by_focus_empty_input(self):
+        """Test summarize_by_focus with empty input."""
+        type_totals = {}
+        result = summarize_by_focus(type_totals)
+        assert result == {}
+
+    def test_summarize_by_focus_single_type(self):
+        """Test summarize_by_focus with only one type."""
+        type_totals = {"Task": 240}
+        result = summarize_by_focus(type_totals)
+        assert result == {"Deep": 240}
+
+    def test_summarize_by_focus_missing_categories(self):
+        """Test summarize_by_focus with missing categories."""
+        # Only Deep focus activities
+        type_totals = {"Task": 120, "Learning": 60}
+        result = summarize_by_focus(type_totals)
+        assert result == {"Deep": 180}
+
+        # Only Meeting focus activities
+        type_totals = {"Meeting": 90}
+        result = summarize_by_focus(type_totals)
+        assert result == {"Meeting": 90}
+
+        # Only Shallow focus activities
+        type_totals = {"Comms": 30, "Admin": 45}
+        result = summarize_by_focus(type_totals)
+        assert result == {"Shallow": 75}
+
+    def test_summarize_by_focus_unknown_type(self):
+        """Test summarize_by_focus with unknown activity type."""
+        type_totals = {
+            "Task": 120,
+            "UnknownType": 60,  # This should not be categorized
+            "Meeting": 90,
+        }
+        result = summarize_by_focus(type_totals)
+        # Unknown types should be ignored
+        assert result == {"Deep": 120, "Meeting": 90}
+
+    def test_summarize_by_focus_zero_values(self):
+        """Test summarize_by_focus with zero values."""
+        type_totals = {
+            "Task": 0,
+            "Learning": 120,
+            "Meeting": 0,
+            "Comms": 30,
+            "Admin": 0,
+        }
+        result = summarize_by_focus(type_totals)
+        assert result == {"Deep": 120, "Meeting": 0, "Shallow": 30}
+
+    def test_summarize_by_focus_break_type(self):
+        """Test summarize_by_focus with Break type (should be ignored)."""
+        type_totals = {
+            "Task": 120,
+            "Break": 60,  # Breaks are not categorized in focus
+            "Meeting": 90,
+        }
+        result = summarize_by_focus(type_totals)
+        # Break should not appear in any focus category
+        assert result == {"Deep": 120, "Meeting": 90}
