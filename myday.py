@@ -318,6 +318,15 @@ def main(
         ]
         print(tabulate(type_table, headers=["Type", "Total Time"], tablefmt="github"))
 
+        # Print summaries with formatting
+        print("\nProjects:")
+        for project, minutes in sorted(project_totals.items()):
+            print(f"- Time.Proj.{project}: {format_minutes_to_hours(minutes)}")
+
+        print("\nTypes:")
+        for type_name, minutes in sorted(type_totals.items()):
+            print(f"- Time.Type.{type_name}: {format_minutes_to_hours(minutes)}")
+
         # Print overall total
         total_hours, total_rem_minutes = calculate_total_time(entries, include_breaks)
         print(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
