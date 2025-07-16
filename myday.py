@@ -2,13 +2,24 @@ import os
 import re
 import sys
 from datetime import date, datetime, timedelta
-from typing import List
+from typing import List, Dict
+from collections import defaultdict
 
 import click
 from tabulate import tabulate
 
 TIME_SECTION_HEADER = "## Time"
 BREAK_ACTIVITY_ID = "Break"
+
+# Type codes mapping
+TYPE_CODES = {
+    "T": "Task",
+    "M": "Meeting",
+    "C": "Comms",
+    "A": "Admin",
+    "L": "Learning",
+    "B": "Break",
+}
 
 
 def extract_time_section(filename: str) -> List[str]:
@@ -25,7 +36,8 @@ def extract_time_section(filename: str) -> List[str]:
         if in_time_section:
             if line.strip().startswith("#"):
                 break
-            if re.match(r"^\d{2}:\d{2}", line.strip()):
+            # Match time block format: START - END Type: #ProjectCode Description
+            if re.match(r"^\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\s*[TMCALB]:", line.strip()):
                 time_section.append(line.strip())
     return time_section
 
@@ -33,38 +45,102 @@ def extract_time_section(filename: str) -> List[str]:
 def parse_time_entries(time_lines: List[str]) -> List[List[str]]:
     """Parse time entries from the time section of the file."""
     entries = []
-    times = []
-    activities = []
-    wikilink_pattern = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
-    for line in time_lines:
-        match = re.match(r"^(\d{2}:\d{2})\s?(.*)", line)
-        if match:
-            times.append(match.group(1))
-            # Remove markdown wikilinks from activity text
-            activity = match.group(2)
-            activity = wikilink_pattern.sub(r"\1", activity)
-            activities.append(activity)
-    durations = []
 
-    for i, _ in enumerate(times):
-        if i < len(times) - 1:
-            t1 = datetime.strptime(times[i], "%H:%M")
-            t2 = datetime.strptime(times[i + 1], "%H:%M")
+    for line in time_lines:
+        # Parse format: START - END Type: #ProjectCode Description
+        match = re.match(
+            r"^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s*([TMCALB]):\s*(.*)$", line
+        )
+        if match:
+            start_time = match.group(1)
+            end_time = match.group(2)
+            type_code = match.group(3)
+            description = match.group(4).strip()
+
+            # Calculate duration
+            t1 = datetime.strptime(start_time, "%H:%M")
+            t2 = datetime.strptime(end_time, "%H:%M")
             duration = t2 - t1
-            # Handle negative durations (e.g., if times cross midnight)
+
+            # Handle negative durations (crossing midnight)
             if duration < timedelta(0):
                 duration += timedelta(days=1)
-            durations.append(str(duration)[:-3])  # Remove seconds
-        else:
-            durations.append("-")
-    for t, a, d in zip(times, activities, durations):
-        entries.append([t, d, a])
+
+            duration_str = str(duration)[:-3]  # Remove seconds
+
+            # Parse project code from description
+            project_match = re.search(r"#(\w+(?:-\w+)?)", description)
+
+            if project_match:
+                project_code = project_match.group(1)
+                # Handle Project-NAME format
+                if project_code.startswith("Project-"):
+                    project = project_code[8:]  # Remove "Project-" prefix
+                else:
+                    # Handle other project codes like General, Managing, Team
+                    project = project_code
+            else:
+                # Default to General if no project code provided
+                project = "General"
+
+            # Remove hashtags from description for display
+            clean_description = re.sub(r"#\w+(-\w+)?", "", description).strip()
+
+            entries.append(
+                [
+                    start_time,
+                    duration_str,
+                    TYPE_CODES.get(type_code, type_code),
+                    project,
+                    clean_description,
+                ]
+            )
+
     return entries
+
+
+def summarize_by_project(entries: List[List[str]]) -> Dict[str, int]:
+    """Summarize total time by project."""
+    project_totals = defaultdict(int)
+
+    for entry in entries:
+        duration_str = entry[1]
+        project = entry[3]
+
+        if duration_str != "-":
+            h, m = map(int, duration_str.split(":"))
+            total_minutes = h * 60 + m
+            project_totals[project] += total_minutes
+
+    return dict(project_totals)
+
+
+def summarize_by_type(entries: List[List[str]]) -> Dict[str, int]:
+    """Summarize total time by type."""
+    type_totals = defaultdict(int)
+
+    for entry in entries:
+        duration_str = entry[1]
+        type_name = entry[2]
+
+        if duration_str != "-":
+            h, m = map(int, duration_str.split(":"))
+            total_minutes = h * 60 + m
+            type_totals[type_name] += total_minutes
+
+    return dict(type_totals)
+
+
+def format_minutes_to_hours(minutes: int) -> str:
+    """Convert minutes to HH:MM format."""
+    hours = minutes // 60
+    mins = minutes % 60
+    return f"{hours}:{mins:02d}"
 
 
 def filter_entries(
     entries: List[List[str]], filter_text: str, ignore_case: bool = False
-) -> List:
+) -> List[List[str]]:
     """Filter entries based on a regular expression."""
     if filter_text:
         try:
@@ -73,7 +149,9 @@ def filter_entries(
         except re.error as e:
             click.echo(f"Error: Invalid regular expression for --filter: {e}", err=True)
             sys.exit(1)
-        return [row for row in entries if filter_re.search(row[2])]
+        return [
+            row for row in entries if filter_re.search(row[4])
+        ]  # Search in description
     return entries
 
 
@@ -88,7 +166,9 @@ def ignore_entries(
         except re.error as e:
             click.echo(f"Error: Invalid regular expression for --ignore: {e}", err=True)
             sys.exit(1)
-        return [row for row in entries if not ignore_re.search(row[2])]
+        return [
+            row for row in entries if not ignore_re.search(row[4])
+        ]  # Search in description
     return entries
 
 
@@ -97,12 +177,14 @@ def calculate_total_time(
 ) -> tuple[int, int]:
     """Calculate total time spent on activities, optionally including breaks."""
     total_minutes = 0
-    for _, duration, activity in entries:
-        if duration != "-" and (
-            include_breaks or not activity.strip().startswith(BREAK_ACTIVITY_ID)
-        ):
-            h, m = map(int, duration.split(":"))
+    for entry in entries:
+        duration_str = entry[1]
+        type_name = entry[2]
+
+        if duration_str != "-" and (include_breaks or type_name != "Break"):
+            h, m = map(int, duration_str.split(":"))
             total_minutes += h * 60 + m
+
     total_hours = total_minutes // 60
     total_rem_minutes = total_minutes % 60
     return total_hours, total_rem_minutes
@@ -197,14 +279,46 @@ def main(
     entries = filter_entries(entries, filter_text, ignore_case)
     entries = ignore_entries(entries, ignore_text, ignore_case)
     if ignore_empty:
-        entries = [row for row in entries if row[2].strip() != ""]
+        entries = [row for row in entries if row[4].strip() != ""]
 
     if entries:
+        # Print detailed entries
         print(
             tabulate(
-                entries, headers=["Time", "Duration", "Activity"], tablefmt="github"
+                entries,
+                headers=[
+                    "Time",
+                    "Duration",
+                    "Type",
+                    "Project",
+                    "Description",
+                ],
+                tablefmt="github",
             )
         )
+
+        # Print summaries
+        print("\n## Summary by Project")
+        project_totals = summarize_by_project(entries)
+        project_table = [
+            [project, format_minutes_to_hours(minutes)]
+            for project, minutes in sorted(project_totals.items())
+        ]
+        print(
+            tabulate(
+                project_table, headers=["Project", "Total Time"], tablefmt="github"
+            )
+        )
+
+        print("\n## Summary by Type")
+        type_totals = summarize_by_type(entries)
+        type_table = [
+            [type_name, format_minutes_to_hours(minutes)]
+            for type_name, minutes in sorted(type_totals.items())
+        ]
+        print(tabulate(type_table, headers=["Type", "Total Time"], tablefmt="github"))
+
+        # Print overall total
         total_hours, total_rem_minutes = calculate_total_time(entries, include_breaks)
         print(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
     else:
