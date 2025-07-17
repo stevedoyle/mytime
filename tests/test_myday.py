@@ -378,3 +378,39 @@ Some notes here.
         ]
         errors = validate_time_entries(time_lines)
         assert errors == []  # Should be valid
+
+    def test_validate_time_entries_empty_format(self):
+        """Test validation with empty time block format (HH:MM - HH:MM)."""
+        time_lines = [
+            "08:00 - 09:00 T: #General Task with description",
+            "09:00 - 10:00",  # Empty time block
+            "10:00 - 11:00 M: #Team Meeting",
+            "11:00 - 12:00",  # Another empty time block
+        ]
+        errors = validate_time_entries(time_lines)
+        assert len(errors) == 0  # Should be no errors
+
+    def test_validate_time_entries_mixed_format(self):
+        """Test validation with mixed empty and full format."""
+        time_lines = [
+            "08:00 - 09:00 T: #General Task",
+            "09:00 - 10:00",  # Empty time block
+            "10:30 - 11:00 M: #Team Meeting",  # Gap from previous
+            "11:00 - 12:00",  # Empty time block
+        ]
+        errors = validate_time_entries(time_lines)
+        assert len(errors) == 1  # Should only have gap error
+        assert "Gap of 30 minutes" in errors[0]
+        assert "Lines 2-3" in errors[0]
+
+    def test_validate_time_entries_empty_format_invalid_time(self):
+        """Test validation with empty format but invalid time."""
+        time_lines = [
+            "08:00 - 09:00",  # Valid empty
+            "25:00 - 26:00",  # Invalid time in empty format
+            "10:00 - 11:00 T: #General Task",
+        ]
+        errors = validate_time_entries(time_lines)
+        assert len(errors) == 1
+        assert "Invalid time format" in errors[0]
+        assert "Line 2" in errors[0]

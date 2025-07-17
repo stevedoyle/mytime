@@ -239,18 +239,29 @@ def validate_time_entries(time_lines: List[str]) -> List[str]:
 
     # First pass: Check format and parse valid entries
     for line_num, line in enumerate(time_lines, 1):
-        # Check basic format first with more flexible regex
-        basic_match = re.match(
+        # Check for empty time block format: HH:MM - HH:MM
+        empty_match = re.match(r"^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$", line)
+
+        # Check for full format: HH:MM - HH:MM Type: Description
+        full_match = re.match(
             r"^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s*([A-Z]):\s*(.*)$", line
         )
-        if not basic_match:
+
+        if empty_match:
+            # Handle empty time block format
+            start_time_str = empty_match.group(1)
+            end_time_str = empty_match.group(2)
+            type_code = None
+            description = ""
+        elif full_match:
+            # Handle full format
+            start_time_str = full_match.group(1)
+            end_time_str = full_match.group(2)
+            type_code = full_match.group(3)
+            description = full_match.group(4).strip()
+        else:
             errors.append(f"Line {line_num}: Invalid format - '{line}'")
             continue
-
-        start_time_str = basic_match.group(1)
-        end_time_str = basic_match.group(2)
-        type_code = basic_match.group(3)
-        description = basic_match.group(4).strip()
 
         # Validate time format
         try:
@@ -262,8 +273,8 @@ def validate_time_entries(time_lines: List[str]) -> List[str]:
             )
             continue
 
-        # Check type code
-        if type_code not in TYPE_CODES:
+        # Check type code (only if not empty format)
+        if type_code is not None and type_code not in TYPE_CODES:
             errors.append(
                 f"Line {line_num}: Invalid type code '{type_code}' - must be one of {list(TYPE_CODES.keys())}"
             )
