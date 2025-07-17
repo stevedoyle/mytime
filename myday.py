@@ -42,6 +42,26 @@ def extract_time_section(filename: str) -> List[str]:
     return time_section
 
 
+def extract_time_section_for_validation(filename: str) -> List[str]:
+    """Extract ALL lines from the time section for validation (including invalid ones)."""
+    with open(filename, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    time_section = []
+    in_time_section = False
+    for line in lines:
+        if line.strip().startswith(TIME_SECTION_HEADER):
+            in_time_section = True
+            continue
+        if in_time_section:
+            if line.strip().startswith("#"):
+                break
+            # Include all non-empty lines in time section for validation
+            if line.strip():
+                time_section.append(line.strip())
+    return time_section
+
+
 def parse_time_entries(time_lines: List[str]) -> List[List[str]]:
     """Parse time entries from the time section of the file."""
     entries = []
@@ -212,6 +232,126 @@ def calculate_total_time(
     return total_hours, total_rem_minutes
 
 
+def validate_time_entries(time_lines: List[str]) -> List[str]:
+    """Validate time entries and return a list of validation errors."""
+    errors = []
+    parsed_entries = []
+
+    # First pass: Check format and parse valid entries
+    for line_num, line in enumerate(time_lines, 1):
+        # Check basic format first with more flexible regex
+        basic_match = re.match(
+            r"^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s*([A-Z]):\s*(.*)$", line
+        )
+        if not basic_match:
+            errors.append(f"Line {line_num}: Invalid format - '{line}'")
+            continue
+
+        start_time_str = basic_match.group(1)
+        end_time_str = basic_match.group(2)
+        type_code = basic_match.group(3)
+        description = basic_match.group(4).strip()
+
+        # Validate time format
+        try:
+            start_time = datetime.strptime(start_time_str, "%H:%M")
+            end_time = datetime.strptime(end_time_str, "%H:%M")
+        except ValueError:
+            errors.append(
+                f"Line {line_num}: Invalid time format - '{start_time_str}' or '{end_time_str}'"
+            )
+            continue
+
+        # Check type code
+        if type_code not in TYPE_CODES:
+            errors.append(
+                f"Line {line_num}: Invalid type code '{type_code}' - must be one of {list(TYPE_CODES.keys())}"
+            )
+            continue
+
+        # Check if end time is after start time (allowing for crossing midnight)
+        if end_time <= start_time:
+            # Check if this could be a midnight crossing
+            end_time_next_day = end_time + timedelta(days=1)
+            duration = end_time_next_day - start_time
+            if duration > timedelta(hours=12):  # Unreasonable for a single activity
+                errors.append(
+                    f"Line {line_num}: End time '{end_time_str}' should be after start time '{start_time_str}'"
+                )
+                continue
+
+        parsed_entries.append(
+            {
+                "line_num": line_num,
+                "start_time": start_time,
+                "end_time": end_time,
+                "start_str": start_time_str,
+                "end_str": end_time_str,
+                "type_code": type_code,
+                "description": description,
+                "original_line": line,
+            }
+        )
+
+    # Second pass: Check for overlaps and gaps
+    if len(parsed_entries) > 1:
+        # Sort entries by start time, handling midnight crossings
+        def sort_key(entry):
+            # For entries that cross midnight, we need special handling
+            start_time = entry["start_time"]
+            end_time = entry["end_time"]
+
+            # If end time is before start time, it crosses midnight
+            if end_time <= start_time:
+                # For sorting purposes, treat early morning times as next day
+                if start_time.hour >= 12:  # PM times stay as-is
+                    return start_time
+                else:  # AM times are treated as next day
+                    return start_time + timedelta(days=1)
+            else:
+                return start_time
+
+        sorted_entries = sorted(parsed_entries, key=sort_key)
+
+        for i in range(len(sorted_entries) - 1):
+            current = sorted_entries[i]
+            next_entry = sorted_entries[i + 1]
+
+            current_end = current["end_time"]
+            next_start = next_entry["start_time"]
+
+            # Handle midnight crossing for current entry
+            if current_end <= current["start_time"]:
+                current_end = current_end + timedelta(days=1)
+
+            # Handle midnight crossing for next entry
+            if next_start < current["start_time"] and current["start_time"].hour >= 12:
+                next_start = next_start + timedelta(days=1)
+
+            # Check for overlaps
+            if current_end > next_start:
+                errors.append(
+                    f"Lines {current['line_num']}-{next_entry['line_num']}: "
+                    f"Overlapping time blocks - '{current['start_str']}-{current['end_str']}' "
+                    f"overlaps with '{next_entry['start_str']}-{next_entry['end_str']}'"
+                )
+
+            # Check for gaps (only if no overlap)
+            elif current_end < next_start:
+                gap_duration = next_start - current_end
+                if gap_duration > timedelta(minutes=0):
+                    gap_minutes = int(gap_duration.total_seconds() / 60)
+                    # Only report gaps if they are reasonable (not due to day boundary issues)
+                    if gap_minutes < 12 * 60:  # Less than 12 hours
+                        errors.append(
+                            f"Lines {current['line_num']}-{next_entry['line_num']}: "
+                            f"Gap of {gap_minutes} minutes between '{current['start_str']}-{current['end_str']}' "
+                            f"and '{next_entry['start_str']}-{next_entry['end_str']}'"
+                        )
+
+    return errors
+
+
 @click.command()
 @click.argument("filename", required=False)
 @click.option("--today", is_flag=True, help="Summarize today's file")
@@ -253,6 +393,12 @@ def calculate_total_time(
     default=False,
     help='Include activities containing "Break" in total time calculation',
 )
+@click.option(
+    "--validate",
+    is_flag=True,
+    default=False,
+    help="Validate time entries for gaps, overlaps, and formatting errors",
+)
 def main(
     filename,
     today,
@@ -263,6 +409,7 @@ def main(
     ignore_empty,
     base_path,
     include_breaks,
+    validate,
 ):
     """Summarize time entries from a markdown file.
     If no filename is provided, defaults to today's file.
@@ -297,6 +444,27 @@ def main(
         sys.exit(1)
 
     time_lines = extract_time_section(filename_to_use)
+
+    # Validate time entries if requested
+    if validate:
+        validation_time_lines = extract_time_section_for_validation(filename_to_use)
+        validation_errors = validate_time_entries(validation_time_lines)
+        if validation_errors:
+            print(f"Validation errors found in {filename_to_use}:")
+            for error in validation_errors:
+                print(f"  ❌ {error}")
+            print(f"\nTotal errors: {len(validation_errors)}")
+            sys.exit(1)
+        else:
+            print(f"✅ No validation errors found in {filename_to_use}")
+            if not validation_time_lines:
+                print("📝 No time entries found in the file.")
+            else:
+                print(
+                    f"📝 {len(validation_time_lines)} time entries validated successfully."
+                )
+            return
+
     entries = parse_time_entries(time_lines)
     entries = filter_entries(entries, filter_text, ignore_case)
     entries = ignore_entries(entries, ignore_text, ignore_case)

@@ -7,6 +7,7 @@ from myday import (
     filter_entries,
     ignore_entries,
     summarize_by_focus,
+    validate_time_entries,
 )
 
 
@@ -306,3 +307,74 @@ Some notes here.
         result = summarize_by_focus(type_totals)
         # Break should not appear in any focus category
         assert result == {"Deep": 120, "Meeting": 90}
+
+    def test_validate_time_entries_valid(self):
+        """Test validation with valid time entries."""
+        time_lines = [
+            "08:00 - 09:00 T: #General Valid task",
+            "09:00 - 10:30 M: #Team Meeting",
+            "10:30 - 12:00 T: #Project-Work Work on project",
+        ]
+        errors = validate_time_entries(time_lines)
+        assert errors == []
+
+    def test_validate_time_entries_invalid_format(self):
+        """Test validation with invalid format."""
+        time_lines = [
+            "08:00 - 09:00 T: #General Valid task",
+            "invalid format line",
+            "09:00 - 10:00 T: #Project-Work Work on project",
+        ]
+        errors = validate_time_entries(time_lines)
+        assert len(errors) >= 1
+        assert any("Invalid format" in error for error in errors)
+        assert any("Line 2" in error for error in errors)
+
+    def test_validate_time_entries_invalid_type_code(self):
+        """Test validation with invalid type code."""
+        time_lines = [
+            "08:00 - 09:00 T: #General Valid task",
+            "09:00 - 10:00 X: #Team Invalid type",
+        ]
+        errors = validate_time_entries(time_lines)
+        assert len(errors) == 1
+        assert "Invalid type code 'X'" in errors[0]
+
+    def test_validate_time_entries_end_before_start(self):
+        """Test validation with end time before start time."""
+        time_lines = [
+            "08:00 - 09:00 T: #General Valid task",
+            "13:00 - 12:00 T: #General End before start",
+        ]
+        errors = validate_time_entries(time_lines)
+        assert len(errors) == 1
+        assert "End time '12:00' should be after start time '13:00'" in errors[0]
+
+    def test_validate_time_entries_overlapping(self):
+        """Test validation with overlapping time blocks."""
+        time_lines = [
+            "08:00 - 09:00 T: #General Task 1",
+            "08:30 - 09:30 T: #General Task 2 overlapping",
+        ]
+        errors = validate_time_entries(time_lines)
+        assert len(errors) == 1
+        assert "Overlapping time blocks" in errors[0]
+
+    def test_validate_time_entries_gap(self):
+        """Test validation with gap between time blocks."""
+        time_lines = [
+            "08:00 - 09:00 T: #General Task 1",
+            "09:30 - 10:30 T: #General Task 2 with gap",
+        ]
+        errors = validate_time_entries(time_lines)
+        assert len(errors) == 1
+        assert "Gap of 30 minutes" in errors[0]
+
+    def test_validate_time_entries_midnight_crossing(self):
+        """Test validation with midnight crossing entries."""
+        time_lines = [
+            "23:00 - 01:00 T: #General Late night task",
+            "01:00 - 02:00 T: #General Early morning task",
+        ]
+        errors = validate_time_entries(time_lines)
+        assert errors == []  # Should be valid
