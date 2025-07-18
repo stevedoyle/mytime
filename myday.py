@@ -50,7 +50,7 @@ def extract_time_section_for_validation(filename: str) -> List[str]:
     time_section = []
     in_time_section = False
     for line in lines:
-        if line.strip() == TIME_SECTION_HEADER:
+        if line.strip().startswith(TIME_SECTION_HEADER):
             in_time_section = True
             continue
         if in_time_section:
@@ -363,6 +363,131 @@ def validate_time_entries(time_lines: List[str]) -> List[str]:
     return errors
 
 
+def fix_time_gaps(filename: str, validation_time_lines: List[str]) -> bool:
+    """Fix time gaps in the file by updating end times. Returns True if fixes were made."""
+    validation_errors = validate_time_entries(validation_time_lines)
+    gap_errors = [error for error in validation_errors if "Gap of" in error]
+
+    if not gap_errors:
+        return False
+
+    print(f"Found {len(gap_errors)} time gap(s) to fix:")
+    for error in gap_errors:
+        print(f"  🔧 {error}")
+
+    # Read the entire file
+    with open(filename, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    # Find the time section and identify lines to fix
+    in_time_section = False
+    time_line_indices = []  # Store (line_index, time_line_content)
+
+    for i, line in enumerate(lines):
+        if line.strip() == TIME_SECTION_HEADER:
+            in_time_section = True
+            continue
+        if in_time_section:
+            if line.strip().startswith("#"):
+                break
+            if line.strip():
+                time_line_indices.append((i, line.strip()))
+
+    # Parse entries and identify gaps
+    parsed_entries = []
+    for line_num, line in enumerate(validation_time_lines, 1):
+        # Check for empty time block format: HH:MM - HH:MM
+        empty_match = re.match(r"^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$", line)
+
+        # Check for full format: HH:MM - HH:MM Type: Description
+        full_match = re.match(
+            r"^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s*([A-Z]):\s*(.*)$", line
+        )
+
+        if empty_match:
+            start_time_str = empty_match.group(1)
+            end_time_str = empty_match.group(2)
+            type_and_desc = ""
+        elif full_match:
+            start_time_str = full_match.group(1)
+            end_time_str = full_match.group(2)
+            type_and_desc = f" {full_match.group(3)}: {full_match.group(4)}"
+        else:
+            continue
+
+        try:
+            start_time = datetime.strptime(start_time_str, "%H:%M")
+            end_time = datetime.strptime(end_time_str, "%H:%M")
+
+            parsed_entries.append(
+                {
+                    "line_num": line_num,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "start_str": start_time_str,
+                    "end_str": end_time_str,
+                    "type_and_desc": type_and_desc,
+                    "original_line": line,
+                }
+            )
+        except ValueError:
+            continue
+
+    # Sort entries and identify gaps to fix
+    sorted_entries = sorted(parsed_entries, key=lambda x: x["start_time"])
+    fixes_made = 0
+
+    for i in range(len(sorted_entries) - 1):
+        current = sorted_entries[i]
+        next_entry = sorted_entries[i + 1]
+
+        current_end = current["end_time"]
+        next_start = next_entry["start_time"]
+
+        # Handle midnight crossing for current entry
+        if current_end <= current["start_time"]:
+            current_end = current_end + timedelta(days=1)
+
+        # Handle midnight crossing for next entry
+        if next_start < current["start_time"] and current["start_time"].hour >= 12:
+            next_start = next_start + timedelta(days=1)
+
+        # Check for gap
+        if current_end < next_start:
+            gap_duration = next_start - current_end
+            if gap_duration > timedelta(minutes=0) and gap_duration < timedelta(
+                hours=12
+            ):
+                # Fix the gap by updating the end time of the current entry
+                new_end_time = next_entry["start_str"]
+
+                # Find the line in the original file and update it
+                line_index = time_line_indices[current["line_num"] - 1][0]
+
+                # Replace the end time in the line
+                if current["type_and_desc"]:
+                    new_line = f"{current['start_str']} - {new_end_time}{current['type_and_desc']}\n"
+                else:
+                    new_line = f"{current['start_str']} - {new_end_time}\n"
+
+                lines[line_index] = new_line
+                fixes_made += 1
+
+                print(
+                    f"  ✅ Fixed gap: Updated '{current['start_str']}-{current['end_str']}' to '{current['start_str']}-{new_end_time}'"
+                )
+
+    if fixes_made > 0:
+        # Write the fixed content back to the file
+        with open(filename, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+        print(f"\n🎉 Applied {fixes_made} fix(es) to {filename}")
+        return True
+    else:
+        print("\n⚠️  No gaps could be fixed automatically")
+        return False
+
+
 @click.command()
 @click.argument("filename", required=False)
 @click.option("--today", is_flag=True, help="Summarize today's file")
@@ -410,6 +535,12 @@ def validate_time_entries(time_lines: List[str]) -> List[str]:
     default=False,
     help="Validate time entries for gaps, overlaps, and formatting errors",
 )
+@click.option(
+    "--fix",
+    is_flag=True,
+    default=False,
+    help="Fix time gaps by updating end times (requires --validate)",
+)
 def main(
     filename,
     today,
@@ -421,6 +552,7 @@ def main(
     base_path,
     include_breaks,
     validate,
+    fix,
 ):
     """Summarize time entries from a markdown file.
     If no filename is provided, defaults to today's file.
@@ -457,19 +589,47 @@ def main(
     time_lines = extract_time_section(filename_to_use)
 
     # Validate time entries if requested
-    if validate:
+    if validate or fix:
+        if fix and not validate:
+            # --fix requires --validate
+            click.echo(
+                "Error: --fix option requires --validate option to be specified",
+                err=True,
+            )
+            sys.exit(1)
+
         validation_time_lines = extract_time_section_for_validation(filename_to_use)
         validation_errors = validate_time_entries(validation_time_lines)
+
+        if fix and validation_errors:
+            # Try to fix gaps first
+            fixes_made = fix_time_gaps(filename_to_use, validation_time_lines)
+            if fixes_made:
+                # Re-validate after fixes
+                validation_time_lines = extract_time_section_for_validation(
+                    filename_to_use
+                )
+                validation_errors = validate_time_entries(validation_time_lines)
+                # Re-extract time lines after fixes
+                time_lines = extract_time_section(filename_to_use)
+
         if validation_errors:
             print(f"Validation errors found in {filename_to_use}:")
             for error in validation_errors:
                 print(f"  ❌ {error}")
             print(f"\nTotal errors: {len(validation_errors)}")
+            if fix:
+                print("⚠️  Some errors could not be fixed automatically")
             sys.exit(1)
         else:
             print(f"✅ No validation errors found in {filename_to_use}")
             if not validation_time_lines:
                 print("📝 No time entries found in the file.")
+            else:
+                print(
+                    f"📝 {len(validation_time_lines)} time entries validated successfully."
+                )
+            return
 
     entries = parse_time_entries(time_lines)
     entries = filter_entries(entries, filter_text, ignore_case)
