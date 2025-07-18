@@ -30,7 +30,7 @@ def extract_time_section(filename: str) -> List[str]:
     time_section = []
     in_time_section = False
     for line in lines:
-        if line.strip().startswith(TIME_SECTION_HEADER):
+        if line.strip() == TIME_SECTION_HEADER:
             in_time_section = True
             continue
         if in_time_section:
@@ -50,7 +50,7 @@ def extract_time_section_for_validation(filename: str) -> List[str]:
     time_section = []
     in_time_section = False
     for line in lines:
-        if line.strip().startswith(TIME_SECTION_HEADER):
+        if line.strip() == TIME_SECTION_HEADER:
             in_time_section = True
             continue
         if in_time_section:
