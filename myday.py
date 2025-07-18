@@ -625,11 +625,11 @@ def main(
             print(f"✅ No validation errors found in {filename_to_use}")
             if not validation_time_lines:
                 print("📝 No time entries found in the file.")
+                return
             else:
                 print(
                     f"📝 {len(validation_time_lines)} time entries validated successfully."
                 )
-            return
 
     entries = parse_time_entries(time_lines)
     entries = filter_entries(entries, filter_text, ignore_case)
