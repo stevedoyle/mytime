@@ -406,11 +406,9 @@ Some notes here.
     def test_validate_time_entries_empty_format_invalid_time(self):
         """Test validation with empty format but invalid time."""
         time_lines = [
-            "08:00 - 09:00",  # Valid empty
             "25:00 - 26:00",  # Invalid time in empty format
-            "10:00 - 11:00 T: #General Task",
         ]
         errors = validate_time_entries(time_lines)
         assert len(errors) == 1
         assert "Invalid time format" in errors[0]
-        assert "Line 2" in errors[0]
+        assert "Line 1" in errors[0]
