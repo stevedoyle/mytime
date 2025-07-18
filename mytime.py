@@ -151,7 +151,7 @@ def normalizeCategories(categories):
     # Normalize category strings
     categories = [cat.title() for cat in categories]
     if "All" in categories:
-        categories = ["Proj", "Area", "Focus", "Prof"]
+        categories = ["Proj", "Type", "Area", "Focus", "Prof"]
     return categories
 
 
@@ -280,7 +280,9 @@ def get_dates(
     default=["All"],
     multiple=True,
     help="Category of time entries to summarise",
-    type=click.Choice(["Area", "Focus", "Proj", "Prof", "All"], case_sensitive=False),
+    type=click.Choice(
+        ["Area", "Focus", "Proj", "Prof", "Type", "All"], case_sensitive=False
+    ),
 )
 @click.option(
     "--csv",
