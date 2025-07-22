@@ -112,3 +112,83 @@ Code quality: ruff (linting/formatting), black (formatting), pre-commit hooks
 5. Run `ruff format .` and `ruff check --fix .` before committing
 6. Ensure pre-commit hooks pass (automatically runs ruff, black, and other checks)
 7. Commit all changes to the feature branch
+
+## Release Workflow
+
+### Overview
+Use temporary `release/vX.Y.Z` branches to prepare, validate, and finalize releases before merging to main.
+
+### Release Process
+
+#### 1. Create Release Branch
+```bash
+# Ensure main is up to date
+git checkout main
+git pull origin main
+
+# Create release branch
+git checkout -b release/v0.8.2
+```
+
+#### 2. Prepare Release
+```bash
+# Bump package version with Hatch
+hatch version patch  # or minor/major
+
+# Update tool versions manually if needed
+# Edit version.py: MYTIME_VERSION, MYDAY_VERSION
+
+# Commit release preparations
+git add .
+git commit -m "chore(release): Prepare for release v0.8.2"
+```
+
+#### 3. Validate Release
+```bash
+# Run comprehensive tests
+pytest tests/ -v
+
+# Validate code quality
+ruff check --fix .
+ruff format .
+
+# Test package installation
+pip install --editable .
+mytime --version
+myday --version
+
+# Build and test distribution
+python -m build
+```
+
+#### 4. Create Release PR
+```bash
+# Tag the release
+git tag v0.8.2
+
+# Push branch and tag
+git push -u origin release/v0.8.2
+git push origin v0.8.2
+
+# Create release PR
+gh pr create --title "Release v0.8.2" --body "Release notes..."
+```
+
+#### 5. Merge and Cleanup
+```bash
+# After PR approval, merge to main
+gh pr merge --merge
+
+# Clean up
+git checkout main
+git pull origin main
+git branch -D release/v0.8.2
+
+# Optional: Create GitHub release
+gh release create v0.8.2 --generate-notes
+```
+
+### Version Management
+- **Package version**: Managed by Hatch (`hatch version patch/minor/major`)
+- **Tool versions**: Manual updates in `version.py` (`MYTIME_VERSION`, `MYDAY_VERSION`)
+- **Release tags**: Format `vX.Y.Z` (e.g., `v0.8.2`)
