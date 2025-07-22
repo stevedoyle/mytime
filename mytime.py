@@ -1,6 +1,6 @@
 # Script for summarizing time tracking information from daily notes.
 
-from mytime_version import __version__
+from version import MYTIME_VERSION
 import os
 import click
 import dateutil
@@ -267,7 +267,7 @@ def get_dates(
 
 
 @click.command()
-@click.version_option(version=__version__)
+@click.version_option(version=MYTIME_VERSION)
 @click.option("--log", default="warning", help="Logging level (info, debug)")
 @click.option(
     "--path",
