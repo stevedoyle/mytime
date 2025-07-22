@@ -8,6 +8,8 @@ from collections import defaultdict
 import click
 from tabulate import tabulate
 
+from myday_version import __version__
+
 TIME_SECTION_HEADER = "## Time"
 BREAK_ACTIVITY_ID = "Break"
 
@@ -489,6 +491,7 @@ def fix_time_gaps(filename: str, validation_time_lines: List[str]) -> bool:
 
 
 @click.command()
+@click.version_option(version=__version__)
 @click.argument("filename", required=False)
 @click.option("--today", is_flag=True, help="Summarize today's file")
 @click.option("--yesterday", is_flag=True, help="Summarize yesterday's file")

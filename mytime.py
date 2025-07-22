@@ -1,6 +1,6 @@
 # Script for summarizing time tracking information from daily notes.
 
-from version import __version__
+from mytime_version import __version__
 import os
 import click
 import dateutil
