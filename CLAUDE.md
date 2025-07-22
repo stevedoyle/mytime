@@ -120,6 +120,8 @@ Use temporary `release/vX.Y.Z` branches to prepare, validate, and finalize relea
 
 ### Release Process
 
+Follow this 6-step process for consistent, validated releases:
+
 #### 1. Create Release Branch
 ```bash
 # Ensure main is up to date
@@ -183,9 +185,42 @@ gh pr merge --merge
 git checkout main
 git pull origin main
 git branch -D release/v0.8.2
+```
 
-# Optional: Create GitHub release
-gh release create v0.8.2 --generate-notes
+#### 6. Create GitHub Release
+```bash
+# Create GitHub release with detailed notes
+gh release create v0.8.2 \
+  --title "Release v0.8.2" \
+  --notes "$(cat <<'EOF'
+## Package Changes
+- Package version: 0.8.1 → 0.8.2
+- Tool versions unchanged: mytime 0.8.0, myday 0.2.0
+
+## Features & Improvements
+- [List new features and improvements]
+- [Document bug fixes]
+- [Highlight breaking changes if any]
+
+## Installation
+```bash
+pip install mytime==0.8.2
+```
+
+## Validation
+- ✅ All tests pass (54/54)
+- ✅ Code quality checks pass
+- ✅ Package builds successfully
+- ✅ Tool versions verified
+EOF
+)" \
+  --verify-tag
+```
+
+**Alternative: Release with auto-generated notes**
+```bash
+# For quick releases with automatic changelog
+gh release create v0.8.2 --generate-notes --title "Release v0.8.2"
 ```
 
 ### Version Management
