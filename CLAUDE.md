@@ -103,9 +103,12 @@ Code quality: ruff (linting/formatting), black (formatting), pre-commit hooks
 - Time manipulation testing with pendulum library
 - Validation logic testing for gap detection and fixing
 
-## Workflow Requirements
+## Development Workflow
 
-1. Create feature branch: `feature-[description]`
-2. Write unit tests for all data processing functions
-3. Run `pytest` and ensure all tests pass
-4. Run `black .` and `flake8` before committing
+1. Before making any changes, create and checkout a feature branch named `feature-[brief-description]`
+2. Write comprehensive tests for all new functionality
+3. Run all tests before committing
+4. Write detailed commit messages explaining the changes and rationale
+5. Run `ruff format .` and `ruff check --fix .` before committing
+6. Ensure pre-commit hooks pass (automatically runs ruff, black, and other checks)
+7. Commit all changes to the feature branch
