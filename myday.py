@@ -874,6 +874,41 @@ def main(
                     )
                 )
 
+            # Print summaries in Time.XXX.YYY format
+            if project_totals:
+                click.echo("\nProjects:")
+                for project, minutes in sorted(
+                    project_totals.items(), key=lambda x: x[1], reverse=True
+                ):
+                    print(
+                        f"- Time.Proj.{project}: {format_minutes_to_hours_decimal(minutes)}"
+                    )
+
+            if type_totals:
+                click.echo("\nTypes:")
+                for type_name, minutes in sorted(
+                    type_totals.items(), key=lambda x: x[1], reverse=True
+                ):
+                    print(
+                        f"- Time.Type.{type_name}: {format_minutes_to_hours_decimal(minutes)}"
+                    )
+
+            if focus_totals:
+                click.echo("\nProductivity:")
+                for focus, minutes in sorted(
+                    focus_totals.items(), key=lambda x: x[1], reverse=True
+                ):
+                    print(
+                        f"- Time.Focus.{focus}: {format_minutes_to_hours_decimal(minutes)}"
+                    )
+
+            # Print overall total for multi-file (using same logic as single-file)
+            if all_entries:
+                total_hours, total_rem_minutes = calculate_total_time(
+                    all_entries, include_breaks
+                )
+                click.echo(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
+
     else:
         # Single file processing (existing validation logic)
         filename_to_use = files_to_process[0]
