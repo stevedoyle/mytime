@@ -102,3 +102,10 @@ Code quality: ruff (linting/formatting), black (formatting), pre-commit hooks
 - Mock file operations for isolated testing
 - Time manipulation testing with pendulum library
 - Validation logic testing for gap detection and fixing
+
+## Workflow Requirements
+
+1. Create feature branch: `feature-[description]`
+2. Write unit tests for all data processing functions
+3. Run `pytest` and ensure all tests pass
+4. Run `black .` and `flake8` before committing
