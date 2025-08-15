@@ -239,14 +239,15 @@ def parse_time_entries(time_lines: List[str]) -> List[List[str]]:
 
 
 def summarize_by_project(entries: List[List[str]]) -> Dict[str, int]:
-    """Summarize total time by project."""
+    """Summarize total time by project, excluding breaks."""
     project_totals = defaultdict(int)
 
     for entry in entries:
         duration_str = entry[1]
+        type_name = entry[2]
         project = entry[3]
 
-        if duration_str != "-":
+        if duration_str != "-" and type_name != "Break":
             h, m = map(int, duration_str.split(":"))
             total_minutes = h * 60 + m
             project_totals[project] += total_minutes
@@ -255,14 +256,14 @@ def summarize_by_project(entries: List[List[str]]) -> Dict[str, int]:
 
 
 def summarize_by_type(entries: List[List[str]]) -> Dict[str, int]:
-    """Summarize total time by type."""
+    """Summarize total time by type, excluding breaks."""
     type_totals = defaultdict(int)
 
     for entry in entries:
         duration_str = entry[1]
         type_name = entry[2]
 
-        if duration_str != "-":
+        if duration_str != "-" and type_name != "Break":
             h, m = map(int, duration_str.split(":"))
             total_minutes = h * 60 + m
             type_totals[type_name] += total_minutes
