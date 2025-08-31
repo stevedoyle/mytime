@@ -182,6 +182,105 @@ class TestMyTime(unittest.TestCase):
         parsed = mt.extractTimeData(mock_content)
         self.assertIn(["Area", "Managing", 1, False], parsed)
 
+    def test_extractTimeBlocks(self):
+        mock_content = """# Daily Note
+
+## Time
+
+09:00 - 11:00 T: #Project-Example1 Development work
+11:00 - 12:00 M: #Team Weekly meeting
+14:00 - 16:00 T: #General Bug fixes
+
+## Other Section"""
+
+        time_blocks = mt.extractTimeBlocks(mock_content)
+        expected = [
+            "09:00 - 11:00 T: #Project-Example1 Development work",
+            "11:00 - 12:00 M: #Team Weekly meeting",
+            "14:00 - 16:00 T: #General Bug fixes",
+        ]
+        self.assertEqual(time_blocks, expected)
+
+    def test_extractTimeBlocks_empty(self):
+        mock_content = """# Daily Note
+
+No time section"""
+        time_blocks = mt.extractTimeBlocks(mock_content)
+        self.assertEqual(time_blocks, [])
+
+    def test_parseTimeBlocks(self):
+        time_blocks = [
+            "09:00 - 11:00 T: #Project-Example1 Development work",
+            "11:00 - 12:00 M: #Team Weekly meeting",
+            "14:00 - 16:00 T: #General Bug fixes",
+            "16:00 - 17:00 B: #General Break time",
+        ]
+
+        tasks_by_project = mt.parseTimeBlocks(time_blocks)
+
+        # Check that Break is not included
+        self.assertNotIn(
+            "General",
+            [
+                task["type"]
+                for project_tasks in tasks_by_project.values()
+                for task in project_tasks
+                if task["type"] == "Break"
+            ],
+        )
+
+        # Check Example1 project
+        self.assertIn("Example1", tasks_by_project)
+        example1_tasks = tasks_by_project["Example1"]
+        self.assertEqual(len(example1_tasks), 1)
+        self.assertEqual(example1_tasks[0]["type"], "Task")
+        self.assertEqual(example1_tasks[0]["description"], "Development work")
+        self.assertEqual(example1_tasks[0]["duration"], "2:00")
+
+        # Check Team project
+        self.assertIn("Team", tasks_by_project)
+        team_tasks = tasks_by_project["Team"]
+        self.assertEqual(len(team_tasks), 1)
+        self.assertEqual(team_tasks[0]["type"], "Meeting")
+        self.assertEqual(team_tasks[0]["description"], "Weekly meeting")
+        self.assertEqual(team_tasks[0]["duration"], "1:00")
+
+        # Check General project
+        self.assertIn("General", tasks_by_project)
+        general_tasks = tasks_by_project["General"]
+        self.assertEqual(len(general_tasks), 1)
+        self.assertEqual(general_tasks[0]["type"], "Task")
+        self.assertEqual(general_tasks[0]["description"], "Bug fixes")
+
+    def test_getTimeBlockData(self):
+        mock_content = """## Time
+
+09:00 - 11:00 T: #Project-Example1 Development work
+11:00 - 12:00 M: #Team Weekly meeting"""
+
+        with patch("builtins.open", new=mock_open(read_data=mock_content)) as mock_file:
+            fname = "./2023-10-16.md"
+            tasks_by_project = mt.getTimeBlockData([fname])
+            mock_file.assert_called_with("./2023-10-16.md", encoding="UTF-8")
+
+            self.assertEqual(len(tasks_by_project), 2)
+            self.assertIn("Example1", tasks_by_project)
+            self.assertIn("Team", tasks_by_project)
+
+            # Check Example1 tasks
+            example1_tasks = tasks_by_project["Example1"]
+            self.assertEqual(len(example1_tasks), 1)
+            self.assertEqual(example1_tasks[0]["date"], "2023-10-16")
+            self.assertEqual(example1_tasks[0]["type"], "Task")
+            self.assertEqual(example1_tasks[0]["description"], "Development work")
+
+            # Check Team tasks
+            team_tasks = tasks_by_project["Team"]
+            self.assertEqual(len(team_tasks), 1)
+            self.assertEqual(team_tasks[0]["date"], "2023-10-16")
+            self.assertEqual(team_tasks[0]["type"], "Meeting")
+            self.assertEqual(team_tasks[0]["description"], "Weekly meeting")
+
 
 if __name__ == "__main__":
     unittest.main()
