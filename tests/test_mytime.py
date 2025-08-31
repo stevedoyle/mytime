@@ -281,6 +281,162 @@ No time section"""
             self.assertEqual(team_tasks[0]["type"], "Meeting")
             self.assertEqual(team_tasks[0]["description"], "Weekly meeting")
 
+    def test_extractNotes(self):
+        mock_content = """# Daily Note
+
+## Time
+
+09:00 - 11:00 T: #Project-Example1 Development work
+
+## Notes
+
+Great progress on the project today. Fixed several bugs.
+
+Key achievements:
+- Resolved authentication issue
+- Completed dashboard feature
+
+## Tomorrow
+
+- Continue with testing
+- Team meeting"""
+
+        notes = mt.extractNotes(mock_content)
+        expected = [
+            "Great progress on the project today. Fixed several bugs.",
+            "",
+            "Key achievements:",
+            "- Resolved authentication issue",
+            "- Completed dashboard feature",
+        ]
+        self.assertEqual(notes, expected)
+
+    def test_extractNotes_empty(self):
+        mock_content = """# Daily Note
+
+## Time
+
+09:00 - 11:00 T: #Project-Example1 Development work
+
+## Tomorrow
+
+- Continue with testing"""
+
+        notes = mt.extractNotes(mock_content)
+        self.assertEqual(notes, [])
+
+    def test_extractNotes_no_section(self):
+        mock_content = """# Daily Note
+
+## Time
+
+09:00 - 11:00 T: #Project-Example1 Development work"""
+
+        notes = mt.extractNotes(mock_content)
+        self.assertEqual(notes, [])
+
+    def test_extractNotes_empty_section(self):
+        mock_content = """# Daily Note
+
+## Notes
+
+## Tomorrow
+
+- Continue with testing"""
+
+        notes = mt.extractNotes(mock_content)
+        self.assertEqual(notes, [])
+
+    def test_extractNotes_whitespace_handling(self):
+        mock_content = """# Daily Note
+
+## Notes
+
+
+Great day with meaningful progress.
+
+
+Key points:
+- Fixed bug #123
+- Meeting was productive
+
+
+## Tomorrow
+
+- Continue"""
+
+        notes = mt.extractNotes(mock_content)
+        expected = [
+            "Great day with meaningful progress.",
+            "",
+            "",
+            "Key points:",
+            "- Fixed bug #123",
+            "- Meeting was productive",
+        ]
+        self.assertEqual(notes, expected)
+
+    def test_getNotesData(self):
+        mock_content1 = """## Notes
+
+Good progress today. Fixed authentication bug."""
+
+        mock_content2 = """## Notes
+
+Completed dashboard feature.
+Very productive day."""
+
+        with patch(
+            "builtins.open",
+            side_effect=[
+                mock_open(read_data=mock_content1).return_value,
+                mock_open(read_data=mock_content2).return_value,
+            ],
+        ):
+            files = ["2023-10-15.md", "2023-10-16.md"]
+            notes_data = mt.getNotesData(files)
+
+            self.assertEqual(len(notes_data), 2)
+            self.assertIn("2023-10-15", notes_data)
+            self.assertIn("2023-10-16", notes_data)
+
+            self.assertEqual(
+                notes_data["2023-10-15"],
+                ["Good progress today. Fixed authentication bug."],
+            )
+            self.assertEqual(
+                notes_data["2023-10-16"],
+                ["Completed dashboard feature.", "Very productive day."],
+            )
+
+    def test_getNotesData_mixed_files(self):
+        mock_content_with_notes = """## Notes
+
+Important note from this day."""
+
+        mock_content_without_notes = """## Time
+
+09:00 - 10:00 T: #Project Work
+
+## Tomorrow
+
+- Continue tomorrow"""
+
+        with patch(
+            "builtins.open",
+            side_effect=[
+                mock_open(read_data=mock_content_with_notes).return_value,
+                mock_open(read_data=mock_content_without_notes).return_value,
+            ],
+        ):
+            files = ["2023-10-15.md", "2023-10-16.md"]
+            notes_data = mt.getNotesData(files)
+
+            # Only files with notes should be included
+            self.assertEqual(len(notes_data), 1)
+            self.assertIn("2023-10-15", notes_data)
+            self.assertNotIn("2023-10-16", notes_data)
+
 
 if __name__ == "__main__":
     unittest.main()

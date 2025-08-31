@@ -69,3 +69,15 @@ mytime --tasks --path examples --from 2024-08-15 --to 2024-08-20
 # Export to TSV format
 mytime --tasks --tsv --path examples --from 2024-08-15 --to 2024-08-20
 ```
+
+### Extract and aggregate notes with --notes
+```bash
+# Show notes from today
+mytime --notes --path examples --today
+
+# Show notes from a specific date range in reverse chronological order
+mytime --notes --path examples --from 2024-08-20 --to 2024-08-22
+
+# Show notes from this week
+mytime --notes --path examples --thisweek
+```

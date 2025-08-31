@@ -309,6 +309,78 @@ def reportTasks(path, begin, end, tsv=False):
         return
 
 
+def extractNotes(contents):
+    """Extract notes from the Notes section of markdown content."""
+    notes = []
+    lines = contents.split("\n")
+    in_notes_section = False
+
+    for line in lines:
+        line_stripped = line.strip()
+        if line_stripped == "## Notes":
+            in_notes_section = True
+            continue
+        if in_notes_section:
+            if line_stripped.startswith("##"):
+                break
+            # Skip empty lines at the start of notes section
+            if not notes and not line_stripped:
+                continue
+            notes.append(
+                line.rstrip()
+            )  # Keep original indentation but remove trailing whitespace
+
+    # Remove trailing empty lines
+    while notes and not notes[-1].strip():
+        notes.pop()
+
+    return notes
+
+
+def getNotesData(files):
+    """Extract notes data from multiple files."""
+    notes_by_date = {}
+
+    for filepath in files:
+        with open(filepath, encoding="UTF-8") as f:
+            filename = os.path.splitext(os.path.basename(filepath))[0]
+            content = f.read()
+            notes = extractNotes(content)
+            if notes:
+                notes_by_date[filename] = notes
+
+    return notes_by_date
+
+
+def reportNotes(path, begin, end):
+    """Report notes aggregated by date in reverse chronological order."""
+    try:
+        files = getFilesInRange(path, begin, end)
+        notes_by_date = getNotesData(files)
+
+        if not notes_by_date:
+            print("No notes found in the specified date range.")
+            return
+
+        print("## Notes Summary")
+        print()
+
+        # Sort dates in reverse chronological order (newest first)
+        for date in sorted(notes_by_date.keys(), reverse=True):
+            notes = notes_by_date[date]
+            print(f"### {date}")
+            for note_line in notes:
+                if note_line.strip():  # Only print non-empty lines
+                    print(note_line)
+                else:
+                    print()  # Preserve empty lines within notes
+            print()  # Add spacing between dates
+
+    except ValueError as err:
+        print(f"Error parsing date: {err}")
+        return
+
+
 ##########################################################################
 
 
@@ -538,6 +610,12 @@ def get_dates(
     is_flag=True,
     help="Analyze time block entries and group tasks by project.",
 )
+@click.option(
+    "--notes",
+    default=False,
+    is_flag=True,
+    help="Extract and aggregate notes from daily notes in reverse chronological order.",
+)
 def mytime(
     log,
     path,
@@ -559,6 +637,7 @@ def mytime(
     onsite,
     brief,
     tasks,
+    notes,
 ):
     """Summarize time tracking data.
 
@@ -595,7 +674,9 @@ def mytime(
     )
     logging.info(f"{start} -> {end}")
 
-    if tasks:
+    if notes:
+        reportNotes(path, start, end)
+    elif tasks:
         reportTasks(path, start, end, tsv)
     elif csv:
         dumpTimeEntries(path, category, start, end)
