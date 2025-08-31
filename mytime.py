@@ -9,6 +9,8 @@ import pandas as pd
 import pendulum
 import re
 import sys
+from datetime import datetime, timedelta
+from collections import defaultdict
 from tabulate import tabulate
 
 
@@ -153,6 +155,158 @@ def normalizeCategories(categories):
     if "All" in categories:
         categories = ["Proj", "Type", "Area", "Focus", "Prof"]
     return categories
+
+
+def extractTimeBlocks(contents):
+    """Extract time block entries from markdown content."""
+    time_blocks = []
+    lines = contents.split("\n")
+    in_time_section = False
+
+    for line in lines:
+        line = line.strip()
+        if line == "## Time":
+            in_time_section = True
+            continue
+        if in_time_section:
+            if line.startswith("#"):
+                break
+            # Match time block format: START - END Type: #ProjectCode Description
+            if re.match(r"^\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\s*[TMCALB]:", line):
+                time_blocks.append(line)
+    return time_blocks
+
+
+def parseTimeBlocks(time_blocks):
+    """Parse time blocks and extract task information grouped by project."""
+    tasks_by_project = defaultdict(list)
+
+    for line in time_blocks:
+        # Parse format: START - END Type: #ProjectCode Description
+        match = re.match(
+            r"^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\s*([TMCALB]):\s*(.*)$", line
+        )
+        if match:
+            start_time = match.group(1)
+            end_time = match.group(2)
+            type_code = match.group(3)
+            description = match.group(4).strip()
+
+            # Calculate duration
+            t1 = datetime.strptime(start_time, "%H:%M")
+            t2 = datetime.strptime(end_time, "%H:%M")
+            duration = t2 - t1
+
+            # Handle negative durations (crossing midnight)
+            if duration < timedelta(0):
+                duration += timedelta(days=1)
+
+            duration_str = str(duration)[:-3]  # Remove seconds
+
+            # Parse project code from description
+            project_match = re.search(r"#(\w+(?:-\w+)*)", description)
+
+            if project_match:
+                project_code = project_match.group(1)
+                # Handle Project-NAME format
+                if project_code.startswith("Project-"):
+                    project = project_code[8:]  # Remove "Project-" prefix
+                else:
+                    # Handle other project codes like General, Managing, Team
+                    project = project_code
+            else:
+                # Default to General if no project code provided
+                project = "General"
+
+            # Remove hashtags from description for display
+            clean_description = re.sub(r"#\w+(?:-\w+)*", "", description).strip()
+
+            # Map type codes to names
+            type_names = {
+                "T": "Task",
+                "M": "Meeting",
+                "C": "Comms",
+                "A": "Admin",
+                "L": "Learning",
+                "B": "Break",
+            }
+            type_name = type_names.get(type_code, type_code)
+
+            # Skip breaks when grouping tasks
+            if type_name != "Break":
+                tasks_by_project[project].append(
+                    {
+                        "time": start_time,
+                        "duration": duration_str,
+                        "type": type_name,
+                        "description": clean_description,
+                    }
+                )
+
+    return dict(tasks_by_project)
+
+
+def getTimeBlockData(files):
+    """Extract time block data from multiple files."""
+    all_tasks = defaultdict(list)
+
+    for filepath in files:
+        with open(filepath, encoding="UTF-8") as f:
+            filename = os.path.splitext(os.path.basename(filepath))[0]
+            content = f.read()
+            time_blocks = extractTimeBlocks(content)
+            if time_blocks:
+                tasks_by_project = parseTimeBlocks(time_blocks)
+                for project, tasks in tasks_by_project.items():
+                    for task in tasks:
+                        task["date"] = filename
+                        all_tasks[project].append(task)
+
+    return dict(all_tasks)
+
+
+def reportTasks(path, begin, end, tsv=False):
+    """Report tasks grouped by project from time block entries."""
+    try:
+        files = getFilesInRange(path, begin, end)
+        tasks_by_project = getTimeBlockData(files)
+
+        if not tasks_by_project:
+            print("No time block entries found in the specified date range.")
+            return
+
+        tblFmt = "tsv" if tsv else "github"
+
+        for project in sorted(tasks_by_project.keys()):
+            tasks = tasks_by_project[project]
+            print(f"\n## Project: {project}")
+
+            # Prepare table data
+            table_data = []
+            for task in tasks:
+                table_data.append(
+                    [
+                        task["date"],
+                        task["time"],
+                        task["duration"],
+                        task["type"],
+                        task["description"],
+                    ]
+                )
+
+            print(
+                tabulate(
+                    table_data,
+                    headers=["Date", "Time", "Duration", "Type", "Description"],
+                    tablefmt=tblFmt,
+                )
+            )
+
+            print(f"Total tasks: {len(tasks)}")
+
+    except ValueError as err:
+        print(f"Error parsing date: {err}")
+        return
 
 
 ##########################################################################
@@ -378,6 +532,12 @@ def get_dates(
 @click.option(
     "--brief", default=False, is_flag=True, help="Brief summary of time entries."
 )
+@click.option(
+    "--tasks",
+    default=False,
+    is_flag=True,
+    help="Analyze time block entries and group tasks by project.",
+)
 def mytime(
     log,
     path,
@@ -398,6 +558,7 @@ def mytime(
     lastyear,
     onsite,
     brief,
+    tasks,
 ):
     """Summarize time tracking data.
 
@@ -434,7 +595,9 @@ def mytime(
     )
     logging.info(f"{start} -> {end}")
 
-    if csv:
+    if tasks:
+        reportTasks(path, start, end, tsv)
+    elif csv:
         dumpTimeEntries(path, category, start, end)
     else:
         reportTimeSpent(path, category, start, end, tsv, onsite, brief)
