@@ -252,6 +252,48 @@ No time section"""
         self.assertEqual(general_tasks[0]["type"], "Task")
         self.assertEqual(general_tasks[0]["description"], "Bug fixes")
 
+    def test_parseTimeBlocks_complex_project_tags(self):
+        """Test parsing of complex project tags that include dots, underscores, etc."""
+        time_blocks = [
+            "09:00 - 10:00 T: #Project.Mobile.v2 App development",
+            "10:00 - 11:00 T: #Bug_123 Critical bug fix",
+            "11:00 - 12:00 M: #Client-ABC.Project Status meeting",
+            "13:00 - 14:00 T: No project tag here",
+            "14:00 - 15:00 A: #Project-Test.v2_beta Testing phase",
+        ]
+
+        tasks_by_project = mt.parseTimeBlocks(time_blocks)
+
+        # Check Project.Mobile.v2 project (should preserve dots)
+        self.assertIn("Project.Mobile.v2", tasks_by_project)
+        mobile_tasks = tasks_by_project["Project.Mobile.v2"]
+        self.assertEqual(len(mobile_tasks), 1)
+        self.assertEqual(mobile_tasks[0]["description"], "App development")
+
+        # Check Bug_123 project (should preserve underscores)
+        self.assertIn("Bug_123", tasks_by_project)
+        bug_tasks = tasks_by_project["Bug_123"]
+        self.assertEqual(len(bug_tasks), 1)
+        self.assertEqual(bug_tasks[0]["description"], "Critical bug fix")
+
+        # Check Client-ABC.Project (should continue until whitespace)
+        self.assertIn("Client-ABC.Project", tasks_by_project)
+        client_tasks = tasks_by_project["Client-ABC.Project"]
+        self.assertEqual(len(client_tasks), 1)
+        self.assertEqual(client_tasks[0]["description"], "Status meeting")
+
+        # Check General project (no tag should default to General)
+        self.assertIn("General", tasks_by_project)
+        general_tasks = tasks_by_project["General"]
+        self.assertEqual(len(general_tasks), 1)
+        self.assertEqual(general_tasks[0]["description"], "No project tag here")
+
+        # Check Project-Test.v2_beta (Project- prefix should be stripped, rest preserved)
+        self.assertIn("Test.v2_beta", tasks_by_project)
+        test_tasks = tasks_by_project["Test.v2_beta"]
+        self.assertEqual(len(test_tasks), 1)
+        self.assertEqual(test_tasks[0]["description"], "Testing phase")
+
     def test_getTimeBlockData(self):
         mock_content = """## Time
 
