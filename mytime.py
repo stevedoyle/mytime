@@ -204,7 +204,8 @@ def parseTimeBlocks(time_blocks):
             duration_str = str(duration)[:-3]  # Remove seconds
 
             # Parse project code from description
-            project_match = re.search(r"#(\w+(?:-\w+)*)", description)
+            # Project tags begin with # and continue until the next whitespace character
+            project_match = re.search(r"#(\S+)", description)
 
             if project_match:
                 project_code = project_match.group(1)
@@ -219,7 +220,7 @@ def parseTimeBlocks(time_blocks):
                 project = "General"
 
             # Remove hashtags from description for display
-            clean_description = re.sub(r"#\w+(?:-\w+)*", "", description).strip()
+            clean_description = re.sub(r"#\S+", "", description).strip()
 
             # Map type codes to names
             type_names = {
