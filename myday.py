@@ -502,9 +502,9 @@ def fix_missing_colons(filename: str) -> bool:
                 break
             if line.strip():
                 # Check for pattern: HH:MM - HH:MM Type #... (missing colon after type)
-                # Pattern matches: time - time single-letter-type space non-colon-char
+                # Pattern matches: time - time single-letter-type followed by spaces where the next char is not a colon
                 match = re.match(
-                    r"^(\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\s*)([TMCALB])(\s+[^:].*?)$",
+                    r"^(\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\s*)([TMCALB])(\s+(?!:).*?)$",
                     line.strip(),
                 )
                 if match:
@@ -513,8 +513,8 @@ def fix_missing_colons(filename: str) -> bool:
                     type_code = match.group(2)
                     rest = match.group(3)
 
-                    # Construct the fixed line
-                    fixed_line = f"{time_part}{type_code}:{rest}\n"
+                    # Construct the fixed line with consistent spacing
+                    fixed_line = f"{time_part}{type_code}: {rest.strip()}\n"
 
                     lines[i] = fixed_line
                     fixes_made += 1

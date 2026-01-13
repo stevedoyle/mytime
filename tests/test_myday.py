@@ -847,7 +847,7 @@ Some notes here.
         os.remove(tmp_filename)
 
 
-"""Test cases for the fix_missing_colons function."""
+# Test cases for the fix_missing_colons function.
 
 
 def test_fix_missing_colons_single_entry():
