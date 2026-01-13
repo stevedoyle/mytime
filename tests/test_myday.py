@@ -10,6 +10,7 @@ from myday import (
     summarize_by_focus,
     validate_time_entries,
     fix_time_gaps,
+    fix_missing_colons,
 )
 
 
@@ -841,6 +842,317 @@ Some notes here.
             updated_content = f.read()
 
         assert updated_content == content
+
+    finally:
+        os.remove(tmp_filename)
+
+
+"""Test cases for the fix_missing_colons function."""
+
+
+def test_fix_missing_colons_single_entry():
+    """Test fixing a single entry with missing colon."""
+    content = """# My Day
+
+## Time
+19:00 - 20:00 M #Managing Stuff
+
+## Notes
+Some notes here.
+"""
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".md") as tmp:
+        tmp.write(content)
+        tmp_filename = tmp.name
+
+    try:
+        # Fix missing colons
+        result = fix_missing_colons(tmp_filename)
+        assert result is True  # Should have made fixes
+
+        # Verify the file was updated
+        with open(tmp_filename, "r", encoding="utf-8") as f:
+            updated_content = f.read()
+
+        # The colon should be added after M
+        assert "19:00 - 20:00 M: #Managing Stuff" in updated_content
+
+    finally:
+        os.remove(tmp_filename)
+
+
+def test_fix_missing_colons_multiple_entries():
+    """Test fixing multiple entries with missing colons."""
+    content = """# My Day
+
+## Time
+09:00 - 10:00 T #General Morning work
+10:00 - 11:00 M #Team Meeting
+11:00 - 12:00 C #General Email
+12:00 - 13:00 B #General Lunch
+
+## Notes
+Some notes here.
+"""
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".md") as tmp:
+        tmp.write(content)
+        tmp_filename = tmp.name
+
+    try:
+        result = fix_missing_colons(tmp_filename)
+        assert result is True
+
+        # Verify all colons were added
+        with open(tmp_filename, "r", encoding="utf-8") as f:
+            updated_content = f.read()
+
+        assert "09:00 - 10:00 T: #General Morning work" in updated_content
+        assert "10:00 - 11:00 M: #Team Meeting" in updated_content
+        assert "11:00 - 12:00 C: #General Email" in updated_content
+        assert "12:00 - 13:00 B: #General Lunch" in updated_content
+
+    finally:
+        os.remove(tmp_filename)
+
+
+def test_fix_missing_colons_mixed_format():
+    """Test fixing entries where some have colons and some don't."""
+    content = """# My Day
+
+## Time
+09:00 - 10:00 T: #General Already has colon
+10:00 - 11:00 M #Team Missing colon
+11:00 - 12:00 T: #Project-Work Another with colon
+12:00 - 13:00 A #General Another missing
+
+## Notes
+Some notes here.
+"""
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".md") as tmp:
+        tmp.write(content)
+        tmp_filename = tmp.name
+
+    try:
+        result = fix_missing_colons(tmp_filename)
+        assert result is True
+
+        # Verify only the missing colons were added
+        with open(tmp_filename, "r", encoding="utf-8") as f:
+            updated_content = f.read()
+
+        assert "09:00 - 10:00 T: #General Already has colon" in updated_content
+        assert "10:00 - 11:00 M: #Team Missing colon" in updated_content
+        assert "11:00 - 12:00 T: #Project-Work Another with colon" in updated_content
+        assert "12:00 - 13:00 A: #General Another missing" in updated_content
+
+    finally:
+        os.remove(tmp_filename)
+
+
+def test_fix_missing_colons_no_missing():
+    """Test fix function when all entries already have colons."""
+    content = """# My Day
+
+## Time
+09:00 - 10:00 T: #General Morning task
+10:00 - 11:00 M: #Team Meeting
+11:00 - 12:00 T: #Project-Work Work on project
+
+## Notes
+Some notes here.
+"""
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".md") as tmp:
+        tmp.write(content)
+        tmp_filename = tmp.name
+
+    try:
+        result = fix_missing_colons(tmp_filename)
+        assert result is False  # No fixes should be made
+
+        # Content should remain unchanged
+        with open(tmp_filename, "r", encoding="utf-8") as f:
+            updated_content = f.read()
+
+        assert updated_content == content
+
+    finally:
+        os.remove(tmp_filename)
+
+
+def test_fix_missing_colons_with_description():
+    """Test fixing entries with various description formats."""
+    content = """# My Day
+
+## Time
+09:00 - 10:00 T Description without hashtag
+10:00 - 11:00 M #Project-Work Work on feature
+11:00 - 12:00 L #Team-Learning Learning session
+
+## Notes
+Some notes here.
+"""
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".md") as tmp:
+        tmp.write(content)
+        tmp_filename = tmp.name
+
+    try:
+        result = fix_missing_colons(tmp_filename)
+        assert result is True
+
+        with open(tmp_filename, "r", encoding="utf-8") as f:
+            updated_content = f.read()
+
+        assert "09:00 - 10:00 T: Description without hashtag" in updated_content
+        assert "10:00 - 11:00 M: #Project-Work Work on feature" in updated_content
+        assert "11:00 - 12:00 L: #Team-Learning Learning session" in updated_content
+
+    finally:
+        os.remove(tmp_filename)
+
+
+def test_fix_missing_colons_preserves_other_sections():
+    """Test that fixing colons preserves other sections of the file."""
+    content = """# My Day
+
+Some intro text here.
+
+## Goals
+- Goal 1
+- Goal 2
+
+## Time
+09:00 - 10:00 T #General Morning task
+10:00 - 11:00 M #Team Meeting
+
+## Notes
+Some important notes.
+
+## Reflection
+Today was good.
+"""
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".md") as tmp:
+        tmp.write(content)
+        tmp_filename = tmp.name
+
+    try:
+        result = fix_missing_colons(tmp_filename)
+        assert result is True
+
+        with open(tmp_filename, "r", encoding="utf-8") as f:
+            updated_content = f.read()
+
+        # Check that other sections are preserved
+        assert "Some intro text here." in updated_content
+        assert "## Goals" in updated_content
+        assert "- Goal 1" in updated_content
+        assert "## Notes" in updated_content
+        assert "Some important notes." in updated_content
+        assert "## Reflection" in updated_content
+        assert "Today was good." in updated_content
+
+        # Check that colons were added
+        assert "09:00 - 10:00 T: #General Morning task" in updated_content
+        assert "10:00 - 11:00 M: #Team Meeting" in updated_content
+
+    finally:
+        os.remove(tmp_filename)
+
+
+def test_fix_missing_colons_all_type_codes():
+    """Test fixing all different type codes."""
+    content = """# My Day
+
+## Time
+08:00 - 09:00 T #General Task
+09:00 - 10:00 M #Team Meeting
+10:00 - 11:00 C #General Communication
+11:00 - 12:00 A #General Admin work
+12:00 - 13:00 L #General Learning
+13:00 - 14:00 B #General Break
+
+## Notes
+Some notes here.
+"""
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".md") as tmp:
+        tmp.write(content)
+        tmp_filename = tmp.name
+
+    try:
+        result = fix_missing_colons(tmp_filename)
+        assert result is True
+
+        with open(tmp_filename, "r", encoding="utf-8") as f:
+            updated_content = f.read()
+
+        assert "08:00 - 09:00 T: #General Task" in updated_content
+        assert "09:00 - 10:00 M: #Team Meeting" in updated_content
+        assert "10:00 - 11:00 C: #General Communication" in updated_content
+        assert "11:00 - 12:00 A: #General Admin work" in updated_content
+        assert "12:00 - 13:00 L: #General Learning" in updated_content
+        assert "13:00 - 14:00 B: #General Break" in updated_content
+
+    finally:
+        os.remove(tmp_filename)
+
+
+def test_fix_missing_colons_no_time_section():
+    """Test fix function with a file that has no time section."""
+    content = """# My Day
+
+Some content but no time section.
+
+## Notes
+Some notes here.
+"""
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".md") as tmp:
+        tmp.write(content)
+        tmp_filename = tmp.name
+
+    try:
+        result = fix_missing_colons(tmp_filename)
+        assert result is False  # No time section = no fixes to make
+
+        # Content should remain unchanged
+        with open(tmp_filename, "r", encoding="utf-8") as f:
+            updated_content = f.read()
+
+        assert updated_content == content
+
+    finally:
+        os.remove(tmp_filename)
+
+
+def test_fix_missing_colons_integration_with_gaps():
+    """Test that fixing colons works together with fixing gaps."""
+    content = """# My Day
+
+## Time
+09:00 - 10:00 T #General First task
+10:30 - 11:30 M #Team Second task with gap
+
+## Notes
+Some notes here.
+"""
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".md") as tmp:
+        tmp.write(content)
+        tmp_filename = tmp.name
+
+    try:
+        # First fix missing colons
+        colons_fixed = fix_missing_colons(tmp_filename)
+        assert colons_fixed is True
+
+        # Then fix gaps
+        validation_lines = extract_time_section_for_validation(tmp_filename)
+        gaps_fixed = fix_time_gaps(tmp_filename, validation_lines)
+        assert gaps_fixed is True
+
+        # Verify both fixes were applied
+        with open(tmp_filename, "r", encoding="utf-8") as f:
+            updated_content = f.read()
+
+        # Should have colon and extended end time
+        assert "09:00 - 10:30 T: #General First task" in updated_content
+        assert "10:30 - 11:30 M: #Team Second task with gap" in updated_content
 
     finally:
         os.remove(tmp_filename)
