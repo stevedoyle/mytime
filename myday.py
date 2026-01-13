@@ -483,6 +483,56 @@ def validate_time_entries(time_lines: List[str]) -> List[str]:
     return errors
 
 
+def fix_missing_colons(filename: str) -> bool:
+    """Fix missing colons after type codes. Returns True if fixes were made."""
+    # Read the entire file
+    with open(filename, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    # Find the time section and identify lines to fix
+    in_time_section = False
+    fixes_made = 0
+
+    for i, line in enumerate(lines):
+        if line.strip() == TIME_SECTION_HEADER:
+            in_time_section = True
+            continue
+        if in_time_section:
+            if line.strip().startswith("#"):
+                break
+            if line.strip():
+                # Check for pattern: HH:MM - HH:MM Type #... (missing colon after type)
+                # Pattern matches: time - time single-letter-type followed by spaces where the next char is not a colon
+                match = re.match(
+                    r"^(\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\s*)([TMCALB])(\s+(?!:).*?)$",
+                    line.strip(),
+                )
+                if match:
+                    # Found a missing colon
+                    time_part = match.group(1)
+                    type_code = match.group(2)
+                    rest = match.group(3)
+
+                    # Construct the fixed line with consistent spacing
+                    fixed_line = f"{time_part}{type_code}: {rest.strip()}\n"
+
+                    lines[i] = fixed_line
+                    fixes_made += 1
+
+                    print(
+                        f"  ✅ Fixed missing colon: '{line.strip()}' → '{fixed_line.strip()}'"
+                    )
+
+    if fixes_made > 0:
+        # Write the fixed content back to the file
+        with open(filename, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+        print(f"\n🎉 Applied {fixes_made} colon fix(es) to {filename}")
+        return True
+    else:
+        return False
+
+
 def fix_time_gaps(filename: str, validation_time_lines: List[str]) -> bool:
     """Fix time gaps in the file by updating end times. Returns True if fixes were made."""
     validation_errors = validate_time_entries(validation_time_lines)
@@ -928,10 +978,20 @@ def main(
             validation_errors = validate_time_entries(validation_time_lines)
 
             if fix and validation_errors:
-                # Try to fix gaps first
+                # Try to fix missing colons first
+                print("🔍 Checking for missing colons after type codes...")
+                colons_fixed = fix_missing_colons(filename_to_use)
+                if colons_fixed:
+                    # Re-validate after colon fixes
+                    validation_time_lines = extract_time_section_for_validation(
+                        filename_to_use
+                    )
+                    validation_errors = validate_time_entries(validation_time_lines)
+
+                # Try to fix gaps
                 fixes_made = fix_time_gaps(filename_to_use, validation_time_lines)
                 if fixes_made:
-                    # Re-validate after fixes
+                    # Re-validate after gap fixes
                     validation_time_lines = extract_time_section_for_validation(
                         filename_to_use
                     )
