@@ -736,6 +736,14 @@ def fix_time_gaps(filename: str, validation_time_lines: List[str]) -> bool:
     default=False,
     help="Summarize last month's files",
 )
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["plain", "table"], case_sensitive=False),
+    default="plain",
+    show_default=True,
+    help="Output format: plain text or table",
+)
 def main(
     filename,
     today,
@@ -752,6 +760,7 @@ def main(
     lastweek,
     thismonth,
     lastmonth,
+    output_format,
 ):
     """Summarize time entries from markdown files.
 
@@ -879,7 +888,7 @@ def main(
             focus_totals = summarize_by_focus(type_totals)
 
             # Display type summary
-            if type_totals:
+            if type_totals and output_format == "table":
                 click.echo(f"\n📈 Summary by Type ({period_name}):")
                 type_table = [
                     [type_name, format_minutes_to_hours(minutes)]
@@ -894,7 +903,7 @@ def main(
                 )
 
             # Display project summary
-            if project_totals:
+            if project_totals and output_format == "table":
                 click.echo(f"\n📊 Summary by Project ({period_name}):")
                 project_table = [
                     [project, format_minutes_to_hours(minutes)]
@@ -911,7 +920,7 @@ def main(
                 )
 
             # Display focus summary
-            if focus_totals:
+            if focus_totals and output_format == "table":
                 click.echo(f"\n🎯 Summary by Productivity Focus ({period_name}):")
                 focus_table = [
                     [focus, format_minutes_to_hours(minutes)]
@@ -1020,63 +1029,70 @@ def main(
             entries = [row for row in entries if row[4].strip() != ""]
 
         if entries:
-            # Print detailed entries
-            print(
-                tabulate(
-                    entries,
-                    headers=[
-                        "Time",
-                        "Duration",
-                        "Type",
-                        "Project",
-                        "Description",
-                    ],
-                    tablefmt="github",
+            # Print detailed entries table
+            if output_format == "table":
+                print(
+                    tabulate(
+                        entries,
+                        headers=[
+                            "Time",
+                            "Duration",
+                            "Type",
+                            "Project",
+                            "Description",
+                        ],
+                        tablefmt="github",
+                    )
                 )
-            )
 
-            # Print summaries
-            print("\n## Summary by Project")
             project_totals = summarize_by_project(entries)
-            project_table = [
-                [project, format_minutes_to_hours(minutes)]
-                for project, minutes in sorted(
-                    project_totals.items(), key=lambda x: x[1], reverse=True
-                )
-            ]
-            print(
-                tabulate(
-                    project_table, headers=["Project", "Total Time"], tablefmt="github"
-                )
-            )
-
-            print("\n## Summary by Type")
             type_totals = summarize_by_type(entries)
-            type_table = [
-                [type_name, format_minutes_to_hours(minutes)]
-                for type_name, minutes in sorted(
-                    type_totals.items(), key=lambda x: x[1], reverse=True
-                )
-            ]
-            print(
-                tabulate(type_table, headers=["Type", "Total Time"], tablefmt="github")
-            )
-
-            print("\n## Summary by Productivity Focus")
             focus_totals = summarize_by_focus(type_totals)
-            focus_table = [
-                [focus, format_minutes_to_hours(minutes)]
-                for focus, minutes in sorted(
-                    focus_totals.items(), key=lambda x: x[1], reverse=True
+
+            # Print summary tables
+            if output_format == "table":
+                print("\n## Summary by Project")
+                project_table = [
+                    [project, format_minutes_to_hours(minutes)]
+                    for project, minutes in sorted(
+                        project_totals.items(), key=lambda x: x[1], reverse=True
+                    )
+                ]
+                print(
+                    tabulate(
+                        project_table,
+                        headers=["Project", "Total Time"],
+                        tablefmt="github",
+                    )
                 )
-            ]
-            print(
-                tabulate(
-                    focus_table,
-                    headers=["Productivity", "Total Time"],
-                    tablefmt="github",
+
+                print("\n## Summary by Type")
+                type_table = [
+                    [type_name, format_minutes_to_hours(minutes)]
+                    for type_name, minutes in sorted(
+                        type_totals.items(), key=lambda x: x[1], reverse=True
+                    )
+                ]
+                print(
+                    tabulate(
+                        type_table, headers=["Type", "Total Time"], tablefmt="github"
+                    )
                 )
-            )
+
+                print("\n## Summary by Productivity Focus")
+                focus_table = [
+                    [focus, format_minutes_to_hours(minutes)]
+                    for focus, minutes in sorted(
+                        focus_totals.items(), key=lambda x: x[1], reverse=True
+                    )
+                ]
+                print(
+                    tabulate(
+                        focus_table,
+                        headers=["Productivity", "Total Time"],
+                        tablefmt="github",
+                    )
+                )
 
             # Print summaries with formatting
             print("\nProjects:")
