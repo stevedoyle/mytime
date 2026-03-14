@@ -744,6 +744,13 @@ def fix_time_gaps(filename: str, validation_time_lines: List[str]) -> bool:
     show_default=True,
     help="Output format: plain text or table",
 )
+@click.option(
+    "--no-summary",
+    "no_summary",
+    is_flag=True,
+    default=False,
+    help="Disable the summary information (projects, types, productivity, total time) at the end of the output.",
+)
 def main(
     filename,
     today,
@@ -761,6 +768,7 @@ def main(
     thismonth,
     lastmonth,
     output_format,
+    no_summary,
 ):
     """Summarize time entries from markdown files.
 
@@ -934,40 +942,41 @@ def main(
                     )
                 )
 
-            # Print summaries in Time.XXX.YYY format
-            if project_totals:
-                click.echo("\nProjects:")
-                for project, minutes in sorted(
-                    project_totals.items(), key=lambda x: x[1], reverse=True
-                ):
-                    print(
-                        f"- Time.Proj.{project}: {format_minutes_to_hours_decimal(minutes)}"
-                    )
+            if not no_summary:
+                # Print summaries in Time.XXX.YYY format
+                if project_totals:
+                    click.echo("\nProjects:")
+                    for project, minutes in sorted(
+                        project_totals.items(), key=lambda x: x[1], reverse=True
+                    ):
+                        print(
+                            f"- Time.Proj.{project}: {format_minutes_to_hours_decimal(minutes)}"
+                        )
 
-            if type_totals:
-                click.echo("\nTypes:")
-                for type_name, minutes in sorted(
-                    type_totals.items(), key=lambda x: x[1], reverse=True
-                ):
-                    print(
-                        f"- Time.Type.{type_name}: {format_minutes_to_hours_decimal(minutes)}"
-                    )
+                if type_totals:
+                    click.echo("\nTypes:")
+                    for type_name, minutes in sorted(
+                        type_totals.items(), key=lambda x: x[1], reverse=True
+                    ):
+                        print(
+                            f"- Time.Type.{type_name}: {format_minutes_to_hours_decimal(minutes)}"
+                        )
 
-            if focus_totals:
-                click.echo("\nProductivity:")
-                for focus, minutes in sorted(
-                    focus_totals.items(), key=lambda x: x[1], reverse=True
-                ):
-                    print(
-                        f"- Time.Focus.{focus}: {format_minutes_to_hours_decimal(minutes)}"
-                    )
+                if focus_totals:
+                    click.echo("\nProductivity:")
+                    for focus, minutes in sorted(
+                        focus_totals.items(), key=lambda x: x[1], reverse=True
+                    ):
+                        print(
+                            f"- Time.Focus.{focus}: {format_minutes_to_hours_decimal(minutes)}"
+                        )
 
-            # Print overall total for multi-file (using same logic as single-file)
-            if all_entries:
-                total_hours, total_rem_minutes = calculate_total_time(
-                    all_entries, include_breaks
-                )
-                click.echo(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
+                # Print overall total for multi-file (using same logic as single-file)
+                if all_entries:
+                    total_hours, total_rem_minutes = calculate_total_time(
+                        all_entries, include_breaks
+                    )
+                    click.echo(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
 
     else:
         # Single file processing (existing validation logic)
@@ -1094,36 +1103,37 @@ def main(
                     )
                 )
 
-            # Print summaries with formatting
-            print("\nProjects:")
-            for project, minutes in sorted(
-                project_totals.items(), key=lambda x: x[1], reverse=True
-            ):
-                print(
-                    f"- Time.Proj.{project}: {format_minutes_to_hours_decimal(minutes)}"
-                )
+            if not no_summary:
+                # Print summaries with formatting
+                print("\nProjects:")
+                for project, minutes in sorted(
+                    project_totals.items(), key=lambda x: x[1], reverse=True
+                ):
+                    print(
+                        f"- Time.Proj.{project}: {format_minutes_to_hours_decimal(minutes)}"
+                    )
 
-            print("\nTypes:")
-            for type_name, minutes in sorted(
-                type_totals.items(), key=lambda x: x[1], reverse=True
-            ):
-                print(
-                    f"- Time.Type.{type_name}: {format_minutes_to_hours_decimal(minutes)}"
-                )
+                print("\nTypes:")
+                for type_name, minutes in sorted(
+                    type_totals.items(), key=lambda x: x[1], reverse=True
+                ):
+                    print(
+                        f"- Time.Type.{type_name}: {format_minutes_to_hours_decimal(minutes)}"
+                    )
 
-            print("\nProductivity:")
-            for focus, minutes in sorted(
-                focus_totals.items(), key=lambda x: x[1], reverse=True
-            ):
-                print(
-                    f"- Time.Focus.{focus}: {format_minutes_to_hours_decimal(minutes)}"
-                )
+                print("\nProductivity:")
+                for focus, minutes in sorted(
+                    focus_totals.items(), key=lambda x: x[1], reverse=True
+                ):
+                    print(
+                        f"- Time.Focus.{focus}: {format_minutes_to_hours_decimal(minutes)}"
+                    )
 
-            # Print overall total
-            total_hours, total_rem_minutes = calculate_total_time(
-                entries, include_breaks
-            )
-            print(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
+                # Print overall total
+                total_hours, total_rem_minutes = calculate_total_time(
+                    entries, include_breaks
+                )
+                print(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
         else:
             print("No activities match the filter.")
 

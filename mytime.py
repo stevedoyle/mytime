@@ -94,7 +94,16 @@ def printTable(table, tsv):
     )
 
 
-def reportTimeSpent(path, categories, begin, end, tsv=False, onsite=False, brief=False):
+def reportTimeSpent(
+    path,
+    categories,
+    begin,
+    end,
+    tsv=False,
+    onsite=False,
+    brief=False,
+    no_summary=False,
+):
     files = []
 
     if brief:
@@ -111,13 +120,14 @@ def reportTimeSpent(path, categories, begin, end, tsv=False, onsite=False, brief
             if total_hours:
                 if not brief:
                     printTable(areas, tsv)
-                print()
-                print(f"Total hours:       {total_hours: >6}")
-                print(f"Total days:        {days: >6}")
-                print(f"Average hours/day: {total_hours / days: >6.1f}")
-                print()
+                if not no_summary:
+                    print()
+                    print(f"Total hours:       {total_hours: >6}")
+                    print(f"Total days:        {days: >6}")
+                    print(f"Average hours/day: {total_hours / days: >6.1f}")
+                    print()
 
-        if days > 0 and onsite:
+        if not no_summary and days > 0 and onsite:
             onsite_days = getOnsiteDays(td)
             print(
                 f"Total onsite days: {onsite_days: >6} ({(onsite_days / days * 100):.0f}%)"
@@ -617,6 +627,13 @@ def get_dates(
     is_flag=True,
     help="Extract and aggregate notes from daily notes in reverse chronological order.",
 )
+@click.option(
+    "--no-summary",
+    "no_summary",
+    default=False,
+    is_flag=True,
+    help="Disable the summary information (total hours, days, average) at the end of the output.",
+)
 def mytime(
     log,
     path,
@@ -639,6 +656,7 @@ def mytime(
     brief,
     tasks,
     notes,
+    no_summary,
 ):
     """Summarize time tracking data.
 
@@ -682,7 +700,7 @@ def mytime(
     elif csv:
         dumpTimeEntries(path, category, start, end)
     else:
-        reportTimeSpent(path, category, start, end, tsv, onsite, brief)
+        reportTimeSpent(path, category, start, end, tsv, onsite, brief, no_summary)
 
 
 ##########################################################################
