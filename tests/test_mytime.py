@@ -479,6 +479,71 @@ Important note from this day."""
             self.assertIn("2023-10-15", notes_data)
             self.assertNotIn("2023-10-16", notes_data)
 
+    def test_reportTimeSpent_shows_summary_by_default(self):
+        mock_content = """
+            Time.Area.Managing: 4
+            Time.Area.DeepWork: 4
+        """
+        with patch("builtins.open", new=mock_open(read_data=mock_content)):
+            with patch("mytime.getFilesInRange", return_value=["2023-10-16.md"]):
+                with patch("builtins.print") as mock_print:
+                    mt.reportTimeSpent(".", ["All"], "2023-10-16", "2023-10-16")
+                    printed = " ".join(str(call) for call in mock_print.call_args_list)
+                    self.assertIn("Total hours", printed)
+                    self.assertIn("Total days", printed)
+                    self.assertIn("Average hours/day", printed)
+
+    def test_reportTimeSpent_no_summary_hides_summary(self):
+        mock_content = """
+            Time.Area.Managing: 4
+            Time.Area.DeepWork: 4
+        """
+        with patch("builtins.open", new=mock_open(read_data=mock_content)):
+            with patch("mytime.getFilesInRange", return_value=["2023-10-16.md"]):
+                with patch("builtins.print") as mock_print:
+                    mt.reportTimeSpent(
+                        ".", ["All"], "2023-10-16", "2023-10-16", no_summary=True
+                    )
+                    printed = " ".join(str(call) for call in mock_print.call_args_list)
+                    self.assertNotIn("Total hours", printed)
+                    self.assertNotIn("Total days", printed)
+                    self.assertNotIn("Average hours/day", printed)
+
+    def test_reportTimeSpent_no_summary_still_shows_table(self):
+        mock_content = """
+            Time.Area.Managing: 4
+            Time.Area.DeepWork: 4
+        """
+        with patch("builtins.open", new=mock_open(read_data=mock_content)):
+            with patch("mytime.getFilesInRange", return_value=["2023-10-16.md"]):
+                with patch("builtins.print") as mock_print:
+                    mt.reportTimeSpent(
+                        ".", ["Area"], "2023-10-16", "2023-10-16", no_summary=True
+                    )
+                    printed = " ".join(str(call) for call in mock_print.call_args_list)
+                    # Table should still be printed
+                    self.assertIn("Managing", printed)
+                    self.assertIn("DeepWork", printed)
+
+    def test_reportTimeSpent_no_summary_hides_onsite(self):
+        mock_content = """
+            onsite: true
+            Time.Area.Managing: 4
+        """
+        with patch("builtins.open", new=mock_open(read_data=mock_content)):
+            with patch("mytime.getFilesInRange", return_value=["2023-10-16.md"]):
+                with patch("builtins.print") as mock_print:
+                    mt.reportTimeSpent(
+                        ".",
+                        ["Area"],
+                        "2023-10-16",
+                        "2023-10-16",
+                        onsite=True,
+                        no_summary=True,
+                    )
+                    printed = " ".join(str(call) for call in mock_print.call_args_list)
+                    self.assertNotIn("Total onsite days", printed)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,6 @@
 import tempfile
 import os
+from click.testing import CliRunner
 from myday import (
     extract_time_section,
     extract_time_section_for_validation,
@@ -11,6 +12,7 @@ from myday import (
     validate_time_entries,
     fix_time_gaps,
     fix_missing_colons,
+    main,
 )
 
 
@@ -1156,3 +1158,41 @@ Some notes here.
 
     finally:
         os.remove(tmp_filename)
+
+
+def test_no_summary_hides_summary_single_file():
+    content = """## Time
+09:00 - 10:00 T: #Project-Work Development
+10:00 - 11:00 M: #Team Meeting
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_filename = os.path.join(tmpdir, "2023-10-16.md")
+        with open(tmp_filename, "w") as f:
+            f.write(content)
+
+        runner = CliRunner()
+        result = runner.invoke(main, [tmp_filename, "--no-summary"])
+        assert result.exit_code == 0
+        assert "Total time" not in result.output
+        assert "Projects:" not in result.output
+        assert "Types:" not in result.output
+        assert "Productivity:" not in result.output
+
+
+def test_no_summary_default_shows_summary_single_file():
+    content = """## Time
+09:00 - 10:00 T: #Project-Work Development
+10:00 - 11:00 M: #Team Meeting
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_filename = os.path.join(tmpdir, "2023-10-16.md")
+        with open(tmp_filename, "w") as f:
+            f.write(content)
+
+        runner = CliRunner()
+        result = runner.invoke(main, [tmp_filename])
+        assert result.exit_code == 0
+        assert "Total time" in result.output
+        assert "Projects:" in result.output
+        assert "Types:" in result.output
+        assert "Productivity:" in result.output
