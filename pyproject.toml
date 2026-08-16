@@ -41,6 +41,14 @@ exclude = [
 line-length = 88
 indent-width = 4
 
+[tool.ruff.lint]
+# Pin the enforced ruleset explicitly so it can't silently grow when ruff
+# adds new default-enabled rules in a future release. This is the classic
+# pyflakes + pycodestyle-error set the project has always been linted
+# against; broader/opinionated rule families (e.g. flake8-datetimez,
+# flake8-future-annotations, tryceratops) are intentionally not enabled.
+select = ["E4", "E7", "E9", "F"]
+
 [tool.ruff.format]
 # Like Black, use double quotes for strings
 quote-style = "double"
