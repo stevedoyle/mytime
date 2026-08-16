@@ -1196,3 +1196,58 @@ def test_no_summary_default_shows_summary_single_file():
         assert "Projects:" in result.output
         assert "Types:" in result.output
         assert "Productivity:" in result.output
+
+
+def test_validate_errors_go_to_stderr_not_stdout():
+    content = """## Time
+09:00 - 10:00 T: #General Morning task
+10:30 - 11:30 T: #General Later task
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_filename = os.path.join(tmpdir, "2023-10-16.md")
+        with open(tmp_filename, "w") as f:
+            f.write(content)
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [tmp_filename, "--validate"])
+        assert result.exit_code == 1
+        assert "Validation errors found" in result.stderr
+        assert "Gap of" in result.stderr
+        assert "Validation errors found" not in result.output
+        assert "Gap of" not in result.output
+
+
+def test_validate_success_message_goes_to_stderr_not_stdout():
+    content = """## Time
+09:00 - 10:00 T: #General Morning task
+10:00 - 11:00 T: #General Later task
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_filename = os.path.join(tmpdir, "2023-10-16.md")
+        with open(tmp_filename, "w") as f:
+            f.write(content)
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [tmp_filename, "--validate"])
+        assert result.exit_code == 0
+        assert "No validation errors found" in result.stderr
+        assert "No validation errors found" not in result.output
+
+
+def test_fix_messages_go_to_stderr_not_stdout():
+    content = """## Time
+09:00 - 10:00 T: #General Morning task
+10:30 - 11:30 T: #General Later task
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_filename = os.path.join(tmpdir, "2023-10-16.md")
+        with open(tmp_filename, "w") as f:
+            f.write(content)
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [tmp_filename, "--validate", "--fix"])
+        assert result.exit_code == 0
+        assert "Fixed gap" in result.stderr
+        assert "Applied" in result.stderr
+        assert "Fixed gap" not in result.output
+        assert "Applied" not in result.output
