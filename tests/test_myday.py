@@ -1,5 +1,6 @@
 import tempfile
 import os
+import json
 from click.testing import CliRunner
 from myday import (
     extract_time_section,
@@ -1251,3 +1252,163 @@ def test_fix_messages_go_to_stderr_not_stdout():
         assert "Applied" in result.stderr
         assert "Fixed gap" not in result.output
         assert "Applied" not in result.output
+
+
+def test_format_json_single_file_produces_four_keys():
+    content = """## Time
+09:00 - 10:00 T: #Project-Work Development
+10:00 - 11:00 M: #Team Meeting
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_filename = os.path.join(tmpdir, "2023-10-16.md")
+        with open(tmp_filename, "w") as f:
+            f.write(content)
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [tmp_filename, "--format", "json"])
+        assert result.exit_code == 0
+
+        payload = json.loads(result.output)
+        assert payload["meta"]["report"] == "daily_summary"
+        assert payload["meta"]["date_range"] == {
+            "from": "2023-10-16",
+            "to": "2023-10-16",
+        }
+        assert set(payload["data"].keys()) == {
+            "entries",
+            "by_project",
+            "by_type",
+            "by_focus",
+        }
+        assert len(payload["data"]["entries"]) == 2
+        assert payload["data"]["entries"][0] == {
+            "time": "09:00",
+            "duration": "1:00",
+            "type": "Task",
+            "project": "Work",
+            "description": "Development",
+        }
+        project_names = {row["project"] for row in payload["data"]["by_project"]}
+        assert project_names == {"Work", "Team"}
+
+
+def test_format_json_period_mode_produces_three_keys():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        today = __import__("pendulum").today()
+        monday = today.start_of("week")
+        for offset, (proj, minutes_content) in enumerate(
+            [
+                ("Project-Work", "09:00 - 10:00 T: #Project-Work Development\n"),
+                ("Team", "09:00 - 10:30 M: #Team Meeting\n"),
+            ]
+        ):
+            day = monday.add(days=offset)
+            fname = os.path.join(tmpdir, f"{day.to_date_string()}.md")
+            with open(fname, "w") as f:
+                f.write(f"## Time\n{minutes_content}")
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main, ["--thisweek", "--path", tmpdir, "--format", "json"]
+        )
+        assert result.exit_code == 0, result.output + (result.stderr or "")
+
+        # Progress/status lines ("Processing...", "Files processed") go to
+        # stderr, so stdout is pure JSON with nothing else to strip.
+        payload = json.loads(result.output)
+        assert payload["meta"]["report"] == "period_summary"
+        assert set(payload["data"].keys()) == {"by_project", "by_type", "by_focus"}
+        assert "entries" not in payload["data"]
+        assert "📁 Processing" in result.stderr
+
+
+def test_format_json_no_summary_does_not_change_json_output():
+    content = """## Time
+09:00 - 10:00 T: #Project-Work Development
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_filename = os.path.join(tmpdir, "2023-10-16.md")
+        with open(tmp_filename, "w") as f:
+            f.write(content)
+
+        runner = CliRunner(mix_stderr=False)
+        result_with = runner.invoke(main, [tmp_filename, "--format", "json"])
+        result_without = runner.invoke(
+            main, [tmp_filename, "--format", "json", "--no-summary"]
+        )
+        assert result_with.exit_code == 0
+        assert result_without.exit_code == 0
+        assert result_with.output == result_without.output
+
+
+def test_format_json_validate_leaves_stdout_clean():
+    content = """## Time
+09:00 - 10:00 T: #General Morning task
+10:30 - 11:30 T: #General Later task
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_filename = os.path.join(tmpdir, "2023-10-16.md")
+        with open(tmp_filename, "w") as f:
+            f.write(content)
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [tmp_filename, "--validate", "--format", "json"])
+        assert result.exit_code == 1
+        assert result.output == ""
+        assert "Validation errors found" in result.stderr
+
+
+def test_format_json_no_matching_entries_still_produces_json():
+    content = """## Time
+09:00 - 10:00 T: #Project-Work Development
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_filename = os.path.join(tmpdir, "2023-10-16.md")
+        with open(tmp_filename, "w") as f:
+            f.write(content)
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main,
+            [tmp_filename, "--filter", "NoSuchProject", "--format", "json"],
+        )
+        assert result.exit_code == 0
+        payload = json.loads(result.output)
+        assert payload["data"] == {
+            "entries": [],
+            "by_project": [],
+            "by_type": [],
+            "by_focus": [],
+        }
+
+
+def test_format_json_period_mode_no_files_found_is_a_clean_error():
+    # No markdown files at all in range is a hard error (exit 1), distinct
+    # from "files exist but had no valid time entries" — stdout must stay
+    # empty either way so it never corrupts a JSON stream.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main, ["--thisweek", "--path", tmpdir, "--format", "json"]
+        )
+        assert result.exit_code == 1
+        assert result.output == ""
+        assert "No files found" in result.stderr
+
+
+def test_format_json_period_mode_files_with_no_valid_entries_still_produces_json():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # A file that exists (within this week) but has no parseable
+        # time entries.
+        today = __import__("pendulum").today()
+        fname = os.path.join(tmpdir, f"{today.to_date_string()}.md")
+        with open(fname, "w") as f:
+            f.write("## Time\n")
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main, ["--thisweek", "--path", tmpdir, "--format", "json"]
+        )
+        assert result.exit_code == 0
+        payload = json.loads(result.output)
+        assert payload["data"] == {"by_project": [], "by_type": [], "by_focus": []}

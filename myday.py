@@ -10,6 +10,7 @@ import click
 import pendulum
 from tabulate import tabulate
 
+from output import render_json
 from version import MYDAY_VERSION
 
 TIME_SECTION_HEADER = "## Time"
@@ -741,10 +742,10 @@ def fix_time_gaps(filename: str, validation_time_lines: List[str]) -> bool:
 @click.option(
     "--format",
     "output_format",
-    type=click.Choice(["plain", "table"], case_sensitive=False),
+    type=click.Choice(["plain", "table", "json"], case_sensitive=False),
     default="plain",
     show_default=True,
-    help="Output format: plain text or table",
+    help="Output format: plain text, table, or json",
 )
 @click.option(
     "--no-summary",
@@ -809,7 +810,8 @@ def main(
 
         if not files_to_process:
             click.echo(
-                f"No files found for {period_name.lower()} in directory: {base_path}"
+                f"No files found for {period_name.lower()} in directory: {base_path}",
+                err=True,
             )
             sys.exit(1)
 
@@ -855,8 +857,10 @@ def main(
 
     if multi_file_mode:
         # Multi-file processing
-        click.echo(f"\n📁 Processing {period_name} ({start_date} to {end_date})")
-        click.echo(f"Found {len(files_to_process)} files in {base_path}")
+        click.echo(
+            f"\n📁 Processing {period_name} ({start_date} to {end_date})", err=True
+        )
+        click.echo(f"Found {len(files_to_process)} files in {base_path}", err=True)
 
         # Process multiple files and get aggregated results
         results = process_multiple_files(
@@ -869,14 +873,23 @@ def main(
         )
 
         if results["files_processed"] == 0:
-            click.echo("No valid time entries found in any files.")
+            click.echo("No valid time entries found in any files.", err=True)
+            if output_format == "json":
+                print(
+                    render_json(
+                        {"by_project": [], "by_type": [], "by_focus": []},
+                        (start_date, end_date),
+                        "period_summary",
+                    )
+                )
             return
 
         # Display per-file summary
-        click.echo(f"\n📊 Files processed: {results['files_processed']}")
+        click.echo(f"\n📊 Files processed: {results['files_processed']}", err=True)
         for filename, file_info in results["file_summaries"].items():
             click.echo(
-                f"  • {filename}: {file_info['entry_count']} entries, {file_info['total_time']}"
+                f"  • {filename}: {file_info['entry_count']} entries, {file_info['total_time']}",
+                err=True,
             )
 
         # Display aggregated summary
@@ -890,7 +903,7 @@ def main(
                 total_time_all += timedelta(hours=hours, minutes=minutes)
 
             # Display summary by type and focus
-            click.echo(f"\n🕐 Total Time ({period_name}): {total_time_all}")
+            click.echo(f"\n🕐 Total Time ({period_name}): {total_time_all}", err=True)
 
             # Summarize by type and project for multi-file analysis
             type_totals = summarize_by_type(all_entries)
@@ -944,7 +957,44 @@ def main(
                     )
                 )
 
-            if not no_summary:
+            if output_format == "json":
+                json_data = {}
+                if project_totals:
+                    json_data["by_project"] = [
+                        {
+                            "project": project,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for project, minutes in sorted(
+                            project_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ]
+                if type_totals:
+                    json_data["by_type"] = [
+                        {
+                            "type": type_name,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for type_name, minutes in sorted(
+                            type_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ]
+                if focus_totals:
+                    json_data["by_focus"] = [
+                        {
+                            "focus": focus,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for focus, minutes in sorted(
+                            focus_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ]
+                print(render_json(json_data, (start_date, end_date), "period_summary"))
+
+            if not no_summary and output_format != "json":
                 # Print summaries in Time.XXX.YYY format
                 if project_totals:
                     click.echo("\nProjects:")
@@ -1045,6 +1095,8 @@ def main(
         if ignore_empty:
             entries = [row for row in entries if row[4].strip() != ""]
 
+        file_date = os.path.splitext(os.path.basename(filename_to_use))[0]
+
         if entries:
             # Print detailed entries table
             if output_format == "table":
@@ -1111,7 +1163,52 @@ def main(
                     )
                 )
 
-            if not no_summary:
+            if output_format == "json":
+                json_data = {
+                    "entries": [
+                        {
+                            "time": row[0],
+                            "duration": row[1],
+                            "type": row[2],
+                            "project": row[3],
+                            "description": row[4],
+                        }
+                        for row in entries
+                    ],
+                    "by_project": [
+                        {
+                            "project": project,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for project, minutes in sorted(
+                            project_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ],
+                    "by_type": [
+                        {
+                            "type": type_name,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for type_name, minutes in sorted(
+                            type_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ],
+                    "by_focus": [
+                        {
+                            "focus": focus,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for focus, minutes in sorted(
+                            focus_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ],
+                }
+                print(render_json(json_data, (file_date, file_date), "daily_summary"))
+
+            if not no_summary and output_format != "json":
                 # Print summaries with formatting
                 print("\nProjects:")
                 for project, minutes in sorted(
@@ -1142,6 +1239,14 @@ def main(
                     entries, include_breaks
                 )
                 print(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
+        elif output_format == "json":
+            print(
+                render_json(
+                    {"entries": [], "by_project": [], "by_type": [], "by_focus": []},
+                    (file_date, file_date),
+                    "daily_summary",
+                )
+            )
         else:
             print("No activities match the filter.")
 
