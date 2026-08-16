@@ -1,6 +1,7 @@
 # Script for summarizing time tracking information from daily notes.
 
 from version import MYTIME_VERSION
+from output import render_json
 import os
 import click
 import dateutil
@@ -103,6 +104,7 @@ def reportTimeSpent(
     onsite=False,
     brief=False,
     no_summary=False,
+    output_format="table",
 ):
     files = []
 
@@ -110,6 +112,10 @@ def reportTimeSpent(
         categories = ["Focus"]
     else:
         categories = normalizeCategories(categories)
+
+    json_data = {}
+    summary_rows = []
+    days = 0
 
     try:
         files = getFilesInRange(path, begin, end)
@@ -119,19 +125,53 @@ def reportTimeSpent(
             days = getNumDays(td)
             if total_hours:
                 if not brief:
-                    printTable(areas, tsv)
+                    if output_format == "json":
+                        json_data[category] = [
+                            {
+                                "name": rec["Name"],
+                                "hours": float(rec["Hours"]),
+                                "pct": round(float(rec["%"]), 1),
+                            }
+                            for rec in areas.to_dict(orient="records")
+                        ]
+                    else:
+                        printTable(areas, tsv)
                 if not no_summary:
-                    print()
-                    print(f"Total hours:       {total_hours: >6}")
-                    print(f"Total days:        {days: >6}")
-                    print(f"Average hours/day: {total_hours / days: >6.1f}")
-                    print()
+                    if output_format == "json":
+                        summary_rows.append(
+                            {
+                                "category": category,
+                                "total_hours": float(total_hours),
+                                "total_days": int(days),
+                                "average_hours_per_day": round(total_hours / days, 1),
+                            }
+                        )
+                    else:
+                        print()
+                        print(f"Total hours:       {total_hours: >6}")
+                        print(f"Total days:        {days: >6}")
+                        print(f"Average hours/day: {total_hours / days: >6.1f}")
+                        print()
 
         if not no_summary and days > 0 and onsite:
             onsite_days = getOnsiteDays(td)
-            print(
-                f"Total onsite days: {onsite_days: >6} ({(onsite_days / days * 100):.0f}%)"
-            )
+            if output_format == "json":
+                json_data["onsite"] = [
+                    {
+                        "onsite_days": int(onsite_days),
+                        "onsite_pct": int(round(onsite_days / days * 100)),
+                    }
+                ]
+            else:
+                print(
+                    f"Total onsite days: {onsite_days: >6} ({(onsite_days / days * 100):.0f}%)"
+                )
+
+        if not no_summary and summary_rows:
+            json_data["summary"] = summary_rows
+
+        if output_format == "json":
+            print(render_json(json_data, (begin, end), "summary"))
     except ValueError as err:
         print(f"Error parsing date: {err}")
         return
@@ -142,14 +182,27 @@ def getOnsiteDays(df):
     return onsite["Date"].nunique()
 
 
-def dumpTimeEntries(path, categories, begin, end):
+def dumpTimeEntries(path, categories, begin, end, output_format="csv"):
     categories = normalizeCategories(categories)
 
     try:
         files = getFilesInRange(path, begin, end)
         td = gettimedata(files)
         td = filterTimeData(td, categories)
-        td.to_csv(sys.stdout, index=False)
+        if output_format == "json":
+            records = [
+                {
+                    "date": rec["Date"],
+                    "category": rec["Category"],
+                    "name": rec["Name"],
+                    "hours": float(rec["Hours"]),
+                    "onsite": bool(rec["Onsite"]),
+                }
+                for rec in td.to_dict(orient="records")
+            ]
+            print(render_json(records, (begin, end), "csv_dump"))
+        else:
+            td.to_csv(sys.stdout, index=False)
     except ValueError as err:
         print(f"Error parsing date: {err}")
         return
@@ -276,14 +329,25 @@ def getTimeBlockData(files):
     return dict(all_tasks)
 
 
-def reportTasks(path, begin, end, tsv=False):
+def reportTasks(path, begin, end, tsv=False, output_format="table"):
     """Report tasks grouped by project from time block entries."""
     try:
         files = getFilesInRange(path, begin, end)
         tasks_by_project = getTimeBlockData(files)
 
         if not tasks_by_project:
-            print("No time block entries found in the specified date range.")
+            if output_format == "json":
+                print(render_json({}, (begin, end), "tasks"))
+            else:
+                print("No time block entries found in the specified date range.")
+            return
+
+        if output_format == "json":
+            json_data = {
+                project: tasks_by_project[project]
+                for project in sorted(tasks_by_project)
+            }
+            print(render_json(json_data, (begin, end), "tasks"))
             return
 
         tblFmt = "tsv" if tsv else "github"
@@ -363,14 +427,26 @@ def getNotesData(files):
     return notes_by_date
 
 
-def reportNotes(path, begin, end):
+def reportNotes(path, begin, end, output_format="table"):
     """Report notes aggregated by date in reverse chronological order."""
     try:
         files = getFilesInRange(path, begin, end)
         notes_by_date = getNotesData(files)
 
         if not notes_by_date:
-            print("No notes found in the specified date range.")
+            if output_format == "json":
+                print(render_json([], (begin, end), "notes"))
+            else:
+                print("No notes found in the specified date range.")
+            return
+
+        if output_format == "json":
+            rows = [
+                {"date": date, "text": note_line}
+                for date in sorted(notes_by_date.keys(), reverse=True)
+                for note_line in notes_by_date[date]
+            ]
+            print(render_json(rows, (begin, end), "notes"))
             return
 
         print("## Notes Summary")
@@ -534,6 +610,13 @@ def get_dates(
     help="Format the output as tab separated values",
 )
 @click.option(
+    "--format",
+    "output_format",
+    default=None,
+    type=click.Choice(["table", "tsv", "csv", "json"], case_sensitive=False),
+    help="Output format. Overrides --csv/--tsv when specified.",
+)
+@click.option(
     "--from",
     "from_",
     default=pendulum.today(),
@@ -640,6 +723,7 @@ def mytime(
     category,
     csv,
     tsv,
+    output_format,
     from_,
     to,
     today,
@@ -693,14 +777,32 @@ def mytime(
     )
     logging.info(f"{start} -> {end}")
 
+    if output_format is None:
+        if csv:
+            output_format = "csv"
+        elif tsv:
+            output_format = "tsv"
+        else:
+            output_format = "table"
+
     if notes:
-        reportNotes(path, start, end)
+        reportNotes(path, start, end, output_format)
     elif tasks:
-        reportTasks(path, start, end, tsv)
-    elif csv:
-        dumpTimeEntries(path, category, start, end)
+        reportTasks(path, start, end, output_format == "tsv", output_format)
+    elif csv or output_format == "csv":
+        dumpTimeEntries(path, category, start, end, output_format)
     else:
-        reportTimeSpent(path, category, start, end, tsv, onsite, brief, no_summary)
+        reportTimeSpent(
+            path,
+            category,
+            start,
+            end,
+            output_format == "tsv",
+            onsite,
+            brief,
+            no_summary,
+            output_format,
+        )
 
 
 ##########################################################################

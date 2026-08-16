@@ -1,5 +1,9 @@
+import json
+import os
+import tempfile
 import unittest
 from unittest.mock import patch, mock_open
+from click.testing import CliRunner
 import mytime as mt
 import pandas as pd
 import pendulum
@@ -543,6 +547,214 @@ Important note from this day."""
                     )
                     printed = " ".join(str(call) for call in mock_print.call_args_list)
                     self.assertNotIn("Total onsite days", printed)
+
+    def test_reportTimeSpent_json_format_returns_envelope(self):
+        mock_content = """
+            Time.Area.Managing: 4
+            Time.Area.DeepWork: 4
+        """
+        with patch("builtins.open", new=mock_open(read_data=mock_content)):
+            with patch("mytime.getFilesInRange", return_value=["2023-10-16.md"]):
+                with patch("builtins.print") as mock_print:
+                    mt.reportTimeSpent(
+                        ".",
+                        ["Area"],
+                        "2023-10-16",
+                        "2023-10-16",
+                        output_format="json",
+                    )
+                    printed = mock_print.call_args_list[-1][0][0]
+                    payload = json.loads(printed)
+                    self.assertEqual(payload["meta"]["report"], "summary")
+                    self.assertEqual(
+                        payload["meta"]["date_range"],
+                        {"from": "2023-10-16", "to": "2023-10-16"},
+                    )
+                    names = {row["name"] for row in payload["data"]["Area"]}
+                    self.assertEqual(names, {"Managing", "DeepWork"})
+                    self.assertIn("summary", payload["data"])
+                    self.assertEqual(payload["data"]["summary"][0]["category"], "Area")
+
+    def test_reportTimeSpent_json_format_no_summary_omits_summary_key(self):
+        mock_content = """
+            Time.Area.Managing: 4
+        """
+        with patch("builtins.open", new=mock_open(read_data=mock_content)):
+            with patch("mytime.getFilesInRange", return_value=["2023-10-16.md"]):
+                with patch("builtins.print") as mock_print:
+                    mt.reportTimeSpent(
+                        ".",
+                        ["Area"],
+                        "2023-10-16",
+                        "2023-10-16",
+                        no_summary=True,
+                        output_format="json",
+                    )
+                    printed = mock_print.call_args_list[-1][0][0]
+                    payload = json.loads(printed)
+                    self.assertNotIn("summary", payload["data"])
+                    self.assertIn("Area", payload["data"])
+
+    def test_reportTasks_json_format_returns_named_keys_per_project(self):
+        with patch("mytime.getFilesInRange", return_value=["2023-10-16.md"]):
+            with patch(
+                "mytime.getTimeBlockData",
+                return_value={
+                    "ProjA": [
+                        {
+                            "time": "09:00",
+                            "duration": "1:00",
+                            "type": "Task",
+                            "description": "Do thing",
+                            "date": "2023-10-16",
+                        }
+                    ]
+                },
+            ):
+                with patch("builtins.print") as mock_print:
+                    mt.reportTasks(
+                        ".", "2023-10-16", "2023-10-16", output_format="json"
+                    )
+                    printed = mock_print.call_args_list[-1][0][0]
+                    payload = json.loads(printed)
+                    self.assertEqual(payload["meta"]["report"], "tasks")
+                    self.assertIn("ProjA", payload["data"])
+                    self.assertEqual(
+                        payload["data"]["ProjA"][0]["description"], "Do thing"
+                    )
+
+    def test_reportNotes_json_format_returns_bare_array(self):
+        with patch("mytime.getFilesInRange", return_value=["2023-10-16.md"]):
+            with patch(
+                "mytime.getNotesData",
+                return_value={"2023-10-16": ["First note", "Second note"]},
+            ):
+                with patch("builtins.print") as mock_print:
+                    mt.reportNotes(
+                        ".", "2023-10-16", "2023-10-16", output_format="json"
+                    )
+                    printed = mock_print.call_args_list[-1][0][0]
+                    payload = json.loads(printed)
+                    self.assertEqual(payload["meta"]["report"], "notes")
+                    self.assertIsInstance(payload["data"], list)
+                    self.assertEqual(
+                        payload["data"],
+                        [
+                            {"date": "2023-10-16", "text": "First note"},
+                            {"date": "2023-10-16", "text": "Second note"},
+                        ],
+                    )
+
+    def test_dumpTimeEntries_json_format_returns_bare_array_native_types(self):
+        mock_content = """
+            onsite: true
+            Time.Area.Managing: 4
+        """
+        with patch("builtins.open", new=mock_open(read_data=mock_content)):
+            with patch("mytime.getFilesInRange", return_value=["2023-10-16.md"]):
+                with patch("builtins.print") as mock_print:
+                    mt.dumpTimeEntries(
+                        ".",
+                        ["All"],
+                        "2023-10-16",
+                        "2023-10-16",
+                        output_format="json",
+                    )
+                    printed = mock_print.call_args_list[-1][0][0]
+                    payload = json.loads(printed)
+                    self.assertEqual(payload["meta"]["report"], "csv_dump")
+                    row = payload["data"][0]
+                    self.assertEqual(row["category"], "Area")
+                    self.assertEqual(row["name"], "Managing")
+                    self.assertEqual(row["hours"], 4.0)
+                    self.assertTrue(row["onsite"])
+
+
+class TestMyTimeCli(unittest.TestCase):
+    def _write_note(self, tmpdir, content="Time.Area.Managing: 4\n"):
+        with open(os.path.join(tmpdir, "2023-10-16.md"), "w") as f:
+            f.write(content)
+
+    def test_cli_csv_flag_still_produces_raw_csv_dump(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_note(tmpdir)
+            runner = CliRunner()
+            result = runner.invoke(
+                mt.mytime,
+                [
+                    "--path",
+                    tmpdir,
+                    "--from",
+                    "2023-10-16",
+                    "--to",
+                    "2023-10-16",
+                    "--csv",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+            self.assertIn("Category,Name,Hours", result.output)
+            self.assertNotIn("{", result.output)
+
+    def test_cli_format_csv_equivalent_to_legacy_csv_flag(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_note(tmpdir)
+            runner = CliRunner()
+            args_base = [
+                "--path",
+                tmpdir,
+                "--from",
+                "2023-10-16",
+                "--to",
+                "2023-10-16",
+            ]
+            legacy = runner.invoke(mt.mytime, args_base + ["--csv"])
+            via_format = runner.invoke(mt.mytime, args_base + ["--format", "csv"])
+            self.assertEqual(legacy.output, via_format.output)
+
+    def test_cli_tsv_flag_still_produces_tsv_table(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_note(tmpdir)
+            runner = CliRunner()
+            result = runner.invoke(
+                mt.mytime,
+                [
+                    "--path",
+                    tmpdir,
+                    "--from",
+                    "2023-10-16",
+                    "--to",
+                    "2023-10-16",
+                    "--category",
+                    "Area",
+                    "--tsv",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+            self.assertIn("\t", result.output)
+
+    def test_cli_format_json_produces_valid_json(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_note(tmpdir)
+            runner = CliRunner()
+            result = runner.invoke(
+                mt.mytime,
+                [
+                    "--path",
+                    tmpdir,
+                    "--from",
+                    "2023-10-16",
+                    "--to",
+                    "2023-10-16",
+                    "--category",
+                    "Area",
+                    "--format",
+                    "json",
+                ],
+            )
+            self.assertEqual(result.exit_code, 0)
+            payload = json.loads(result.output)
+            self.assertEqual(payload["meta"]["report"], "summary")
+            self.assertIn("Area", payload["data"])
 
 
 if __name__ == "__main__":
