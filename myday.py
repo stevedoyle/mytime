@@ -10,6 +10,7 @@ import click
 import pendulum
 from tabulate import tabulate
 
+from output import render_json
 from version import MYDAY_VERSION
 
 TIME_SECTION_HEADER = "## Time"
@@ -741,10 +742,10 @@ def fix_time_gaps(filename: str, validation_time_lines: List[str]) -> bool:
 @click.option(
     "--format",
     "output_format",
-    type=click.Choice(["plain", "table"], case_sensitive=False),
+    type=click.Choice(["plain", "table", "json"], case_sensitive=False),
     default="plain",
     show_default=True,
-    help="Output format: plain text or table",
+    help="Output format: plain text, table, or json",
 )
 @click.option(
     "--no-summary",
@@ -944,7 +945,44 @@ def main(
                     )
                 )
 
-            if not no_summary:
+            if output_format == "json":
+                json_data = {}
+                if project_totals:
+                    json_data["by_project"] = [
+                        {
+                            "project": project,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for project, minutes in sorted(
+                            project_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ]
+                if type_totals:
+                    json_data["by_type"] = [
+                        {
+                            "type": type_name,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for type_name, minutes in sorted(
+                            type_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ]
+                if focus_totals:
+                    json_data["by_focus"] = [
+                        {
+                            "focus": focus,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for focus, minutes in sorted(
+                            focus_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ]
+                print(render_json(json_data, (start_date, end_date), "period_summary"))
+
+            if not no_summary and output_format != "json":
                 # Print summaries in Time.XXX.YYY format
                 if project_totals:
                     click.echo("\nProjects:")
@@ -1111,7 +1149,53 @@ def main(
                     )
                 )
 
-            if not no_summary:
+            if output_format == "json":
+                file_date = os.path.splitext(os.path.basename(filename_to_use))[0]
+                json_data = {
+                    "entries": [
+                        {
+                            "time": row[0],
+                            "duration": row[1],
+                            "type": row[2],
+                            "project": row[3],
+                            "description": row[4],
+                        }
+                        for row in entries
+                    ],
+                    "by_project": [
+                        {
+                            "project": project,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for project, minutes in sorted(
+                            project_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ],
+                    "by_type": [
+                        {
+                            "type": type_name,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for type_name, minutes in sorted(
+                            type_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ],
+                    "by_focus": [
+                        {
+                            "focus": focus,
+                            "minutes": minutes,
+                            "total_time": format_minutes_to_hours(minutes),
+                        }
+                        for focus, minutes in sorted(
+                            focus_totals.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ],
+                }
+                print(render_json(json_data, (file_date, file_date), "daily_summary"))
+
+            if not no_summary and output_format != "json":
                 # Print summaries with formatting
                 print("\nProjects:")
                 for project, minutes in sorted(
