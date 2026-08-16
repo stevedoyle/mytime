@@ -519,15 +519,16 @@ def fix_missing_colons(filename: str) -> bool:
                     lines[i] = fixed_line
                     fixes_made += 1
 
-                    print(
-                        f"  ✅ Fixed missing colon: '{line.strip()}' → '{fixed_line.strip()}'"
+                    click.echo(
+                        f"  ✅ Fixed missing colon: '{line.strip()}' → '{fixed_line.strip()}'",
+                        err=True,
                     )
 
     if fixes_made > 0:
         # Write the fixed content back to the file
         with open(filename, "w", encoding="utf-8") as f:
             f.writelines(lines)
-        print(f"\n🎉 Applied {fixes_made} colon fix(es) to {filename}")
+        click.echo(f"\n🎉 Applied {fixes_made} colon fix(es) to {filename}", err=True)
         return True
     else:
         return False
@@ -541,9 +542,9 @@ def fix_time_gaps(filename: str, validation_time_lines: List[str]) -> bool:
     if not gap_errors:
         return False
 
-    print(f"Found {len(gap_errors)} time gap(s) to fix:")
+    click.echo(f"Found {len(gap_errors)} time gap(s) to fix:", err=True)
     for error in gap_errors:
-        print(f"  🔧 {error}")
+        click.echo(f"  🔧 {error}", err=True)
 
     # Read the entire file
     with open(filename, "r", encoding="utf-8") as f:
@@ -643,18 +644,19 @@ def fix_time_gaps(filename: str, validation_time_lines: List[str]) -> bool:
                 lines[line_index] = new_line
                 fixes_made += 1
 
-                print(
-                    f"  ✅ Fixed gap: Updated '{current['start_str']}-{current['end_str']}' to '{current['start_str']}-{new_end_time}'"
+                click.echo(
+                    f"  ✅ Fixed gap: Updated '{current['start_str']}-{current['end_str']}' to '{current['start_str']}-{new_end_time}'",
+                    err=True,
                 )
 
     if fixes_made > 0:
         # Write the fixed content back to the file
         with open(filename, "w", encoding="utf-8") as f:
             f.writelines(lines)
-        print(f"\n🎉 Applied {fixes_made} fix(es) to {filename}")
+        click.echo(f"\n🎉 Applied {fixes_made} fix(es) to {filename}", err=True)
         return True
     else:
-        print("\n⚠️  No gaps could be fixed automatically")
+        click.echo("\n⚠️  No gaps could be fixed automatically", err=True)
         return False
 
 
@@ -997,7 +999,9 @@ def main(
 
             if fix and validation_errors:
                 # Try to fix missing colons first
-                print("🔍 Checking for missing colons after type codes...")
+                click.echo(
+                    "🔍 Checking for missing colons after type codes...", err=True
+                )
                 colons_fixed = fix_missing_colons(filename_to_use)
                 if colons_fixed:
                     # Re-validate after colon fixes
@@ -1016,17 +1020,21 @@ def main(
                     validation_errors = validate_time_entries(validation_time_lines)
 
             if validation_errors:
-                print(f"Validation errors found in {filename_to_use}:")
+                click.echo(f"Validation errors found in {filename_to_use}:", err=True)
                 for error in validation_errors:
-                    print(f"  ❌ {error}")
-                print(f"\nTotal errors: {len(validation_errors)}")
+                    click.echo(f"  ❌ {error}", err=True)
+                click.echo(f"\nTotal errors: {len(validation_errors)}", err=True)
                 if fix:
-                    print("⚠️  Some errors could not be fixed automatically")
+                    click.echo(
+                        "⚠️  Some errors could not be fixed automatically", err=True
+                    )
                 sys.exit(1)
             else:
-                print(f"✅ No validation errors found in {filename_to_use}")
+                click.echo(
+                    f"✅ No validation errors found in {filename_to_use}", err=True
+                )
                 if not validation_time_lines:
-                    print("📝 No time entries found in the file.")
+                    click.echo("📝 No time entries found in the file.", err=True)
                     return
 
         # Extract and process single file
