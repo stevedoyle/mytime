@@ -810,7 +810,8 @@ def main(
 
         if not files_to_process:
             click.echo(
-                f"No files found for {period_name.lower()} in directory: {base_path}"
+                f"No files found for {period_name.lower()} in directory: {base_path}",
+                err=True,
             )
             sys.exit(1)
 
@@ -856,8 +857,10 @@ def main(
 
     if multi_file_mode:
         # Multi-file processing
-        click.echo(f"\n📁 Processing {period_name} ({start_date} to {end_date})")
-        click.echo(f"Found {len(files_to_process)} files in {base_path}")
+        click.echo(
+            f"\n📁 Processing {period_name} ({start_date} to {end_date})", err=True
+        )
+        click.echo(f"Found {len(files_to_process)} files in {base_path}", err=True)
 
         # Process multiple files and get aggregated results
         results = process_multiple_files(
@@ -870,14 +873,23 @@ def main(
         )
 
         if results["files_processed"] == 0:
-            click.echo("No valid time entries found in any files.")
+            click.echo("No valid time entries found in any files.", err=True)
+            if output_format == "json":
+                print(
+                    render_json(
+                        {"by_project": [], "by_type": [], "by_focus": []},
+                        (start_date, end_date),
+                        "period_summary",
+                    )
+                )
             return
 
         # Display per-file summary
-        click.echo(f"\n📊 Files processed: {results['files_processed']}")
+        click.echo(f"\n📊 Files processed: {results['files_processed']}", err=True)
         for filename, file_info in results["file_summaries"].items():
             click.echo(
-                f"  • {filename}: {file_info['entry_count']} entries, {file_info['total_time']}"
+                f"  • {filename}: {file_info['entry_count']} entries, {file_info['total_time']}",
+                err=True,
             )
 
         # Display aggregated summary
@@ -891,7 +903,7 @@ def main(
                 total_time_all += timedelta(hours=hours, minutes=minutes)
 
             # Display summary by type and focus
-            click.echo(f"\n🕐 Total Time ({period_name}): {total_time_all}")
+            click.echo(f"\n🕐 Total Time ({period_name}): {total_time_all}", err=True)
 
             # Summarize by type and project for multi-file analysis
             type_totals = summarize_by_type(all_entries)
@@ -1083,6 +1095,8 @@ def main(
         if ignore_empty:
             entries = [row for row in entries if row[4].strip() != ""]
 
+        file_date = os.path.splitext(os.path.basename(filename_to_use))[0]
+
         if entries:
             # Print detailed entries table
             if output_format == "table":
@@ -1150,7 +1164,6 @@ def main(
                 )
 
             if output_format == "json":
-                file_date = os.path.splitext(os.path.basename(filename_to_use))[0]
                 json_data = {
                     "entries": [
                         {
@@ -1226,6 +1239,14 @@ def main(
                     entries, include_breaks
                 )
                 print(f"\nTotal time: {total_hours}:{total_rem_minutes:02d}")
+        elif output_format == "json":
+            print(
+                render_json(
+                    {"entries": [], "by_project": [], "by_type": [], "by_focus": []},
+                    (file_date, file_date),
+                    "daily_summary",
+                )
+            )
         else:
             print("No activities match the filter.")
 
