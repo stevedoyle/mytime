@@ -178,6 +178,8 @@ Options:
   --csv                           Format the output as comma separated values
                                   with one row per time entry
   --tsv                           Format the output as tab separated values
+  --format [table|tsv|csv|json]   Output format. Overrides --csv/--tsv when
+                                  specified.
   --from [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%d %H:%M:%S]
                                   Start of time tracking period (default is
                                   today).
@@ -206,6 +208,13 @@ Options:
                                   and --to values.
   --onsite                        Include onsite information in the summary.
   --brief                         Brief summary of time entries.
+  --tasks                         Analyze time block entries and group tasks
+                                  by project.
+  --notes                         Extract and aggregate notes from daily notes
+                                  in reverse chronological order.
+  --no-summary                    Disable the summary information (total
+                                  hours, days, average) at the end of the
+                                  output.
   --help                          Show this message and exit.
 ```
 
@@ -214,24 +223,41 @@ Options:
 ```text
 Usage: myday.py [OPTIONS] [FILENAME]
 
-  Summarize time entries from a markdown file. If no filename is provided,
-  defaults to today's file. If --today or --yesterday is specified, uses the
-  respective file.
+  Summarize time entries from markdown files.
+
+  Supports single file analysis or multi-file period analysis. - Single file:
+  specify filename, --today, or --yesterday - Multi-file: use --thisweek,
+  --lastweek, --thismonth, --lastmonth
 
 Options:
-  --today           Summarize today's file
-  --yesterday       Summarize yesterday's file
-  --filter TEXT     Only output activities matching this regular expression
-  --ignore-case     Make the filter regular expression case-insensitive
-  --ignore TEXT     Exclude activities matching this regular expression
-  --ignore-empty    Ignore activities with an empty name
-  --path TEXT       Base directory to search for files  [default: .]
-  --include-breaks  Include activities containing "Break" in total time
-                    calculation
-  --validate        Validate time entries for gaps, overlaps, and formatting
-                    errors
-  --fix             Fix time gaps by updating end times (requires --validate)
-  --help            Show this message and exit.
+  --version                    Show the version and exit.
+  --today                      Summarize today's file
+  --yesterday                  Summarize yesterday's file
+  --filter TEXT                Only output activities matching this regular
+                                expression
+  --ignore-case                Make the filter regular expression case-
+                                insensitive
+  --ignore TEXT                Exclude activities matching this regular
+                                expression
+  --ignore-empty                Ignore activities with an empty name
+  --path TEXT                  Base directory to search for files  [default:
+                                .]
+  --include-breaks             Include activities containing "Break" in total
+                                time calculation
+  --validate                   Validate time entries for gaps, overlaps, and
+                                formatting errors
+  --fix                        Fix time gaps by updating end times (requires
+                                --validate)
+  --thisweek                   Summarize this week's files
+  --lastweek                   Summarize last week's files
+  --thismonth                  Summarize this month's files
+  --lastmonth                  Summarize last month's files
+  --format [plain|table|json]  Output format: plain text, table, or json
+                                [default: plain]
+  --no-summary                 Disable the summary information (projects,
+                                types, productivity, total time) at the end of
+                                the output.
+  --help                       Show this message and exit.
 ```
 
 ### Usage Examples
@@ -250,6 +276,12 @@ mytime --category Focus --category Proj
 
 # Export to CSV
 mytime --csv --from 2023-10-01 --to 2023-10-31
+
+# Same as --csv, via the unified --format flag
+mytime --format csv --from 2023-10-01 --to 2023-10-31
+
+# JSON output, e.g. for piping into jq
+mytime --format json --category Focus | jq '.data'
 ```
 
 **myday examples:**
@@ -269,7 +301,25 @@ myday --validate --fix 2023-10-16.md
 
 # Filter activities and ignore breaks
 myday --filter "Project-Work" --ignore-empty
+
+# JSON output, e.g. for piping into jq
+myday 2023-10-16.md --format json | jq '.data.by_project'
+
+# JSON output for a period, aggregated across all matching files
+myday --thisweek --format json | jq '.data.by_type'
 ```
+
+### JSON Output
+
+Both tools accept `--format json`, producing a single compact JSON object on stdout:
+
+```json
+{"meta": {"date_range": {"from": "2023-10-16", "to": "2023-10-16"}, "report": "daily_summary"}, "data": {"entries": [...], "by_project": [...], "by_type": [...], "by_focus": [...]}}
+```
+
+- `meta.date_range` is the date span the report covers; `meta.report` identifies the report shape (e.g. `summary`, `tasks`, `notes`, `csv_dump` for `mytime`; `daily_summary`, `period_summary` for `myday`).
+- `data` is a bare array for reports with a single table (e.g. `mytime`'s csv-dump or notes report), or an object with named keys for reports with multiple tables (e.g. `myday`'s `entries`/`by_project`/`by_type`/`by_focus`).
+- All diagnostic and status output (validation warnings, fix-applied messages, progress lines) is written to stderr, so stdout stays valid, parseable JSON regardless of what else is happening.
 
 ## Testing
 
