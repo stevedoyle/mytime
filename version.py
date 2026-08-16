@@ -1,5 +1,5 @@
-__version__ = "0.12.0"
+__version__ = "0.13.0"
 
 # Tool-specific versions
-MYTIME_VERSION = "0.9.0"
-MYDAY_VERSION = "0.5.0"
+MYTIME_VERSION = "0.10.0"
+MYDAY_VERSION = "0.6.0"
