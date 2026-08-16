@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked as GitHub issues on stevedoyle/mytime (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical labels (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — CONTEXT.md and docs/adr/ at the repo root. See `docs/agents/domain.md`.
+
 ## Project Overview
 
 This is a Python-based time tracking utility that provides two complementary CLI tools:
